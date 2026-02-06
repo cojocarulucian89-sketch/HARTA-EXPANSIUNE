@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>QUEST DETECTIVE - EXPANSIUNE</title>
 
-  <!-- config.js trebuie să fie în același folder cu index.html -->
   <script src="./config.js"></script>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -212,6 +211,7 @@ L.control.zoom({ position:'topright' }).addTo(map);
    2) DATA + LAYERS
 =========================== */
 let data = { lockers: [], awbJL: {}, awbJLM: {}, popJL: {} };
+
 let detectedMonths = [];
 let addMode = false;
 
@@ -257,7 +257,8 @@ L.control.layers(
   { collapsed:true }
 ).addTo(map);
 
-let lockerMarkers = [];
+/* Search index pentru lockere */
+let lockerMarkers = []; // [{ marker, locker }]
 
 /* ===========================
    3) UTILS
@@ -351,6 +352,52 @@ function monthsAgo(d){
   if(!d) return Infinity;
   const now = new Date();
   return (now.getFullYear()-d.getFullYear())*12 + (now.getMonth()-d.getMonth());
+}
+
+/* ===========================
+   3.5) CONTEXT PENTRU AI (DIN FIȘIER)
+   (NOU) - trimite un rezumat + top N lockere în request
+=========================== */
+function buildLockersContextForAI(options = {}){
+  const lockers = Array.isArray(data.lockers) ? data.lockers : [];
+  const topN = Math.max(10, Math.min(120, options.topN ?? 60));
+
+  if(!lockers.length){
+    return { ok:false, note:'NU există lockere încărcate (data.lockers este gol). Așteaptă autoload-ul sau încarcă manual fișierul Lockere.' };
+  }
+
+  const total = lockers.length;
+  const avgAll = +(lockers.reduce((s,l)=>s+(l.loadNov25||0),0) / Math.max(1,total)).toFixed(1);
+
+  const criticUrgent = lockers.filter(l => (l.loadNov25||0) >= 95 || (l.daysOff||0) > 5).length;
+  const criticStandard = lockers.filter(l => (l.loadNov25||0) >= 85 && (l.loadNov25||0) < 95 && (l.daysOff||0) <= 5).length;
+  const atentie = lockers.filter(l => (l.loadNov25||0) >= 75 && (l.loadNov25||0) < 85).length;
+
+  const top = lockers
+    .slice()
+    .sort((a,b)=>(b.loadNov25||0)-(a.loadNov25||0))
+    .slice(0, topN)
+    .map(l => ({
+      nume: l.nume || '',
+      oras: l.city || '',
+      adresa: l.addr || '',
+      lat: l.lat,
+      lng: l.lng,
+      loadNov25: +(l.loadNov25||0).toFixed(1),
+      loadNov24: +(l.loadNov24||0).toFixed(1),
+      avgHist: +(l.avgHist||0).toFixed(1),
+      trend: l.trend || 'Stabil',
+      daysOff: l.daysOff || 0,
+      install: l.install || '',
+      cap: l.cap || '',
+      model: l.model || ''
+    }));
+
+  return {
+    ok:true,
+    summary: { totalLockers: total, avgLoadNov25: avgAll, criticUrgent, criticStandard, atentie },
+    topLockers: top
+  };
 }
 
 /* ===========================
@@ -676,7 +723,6 @@ async function loadAllCSVs(){
     setStatus('statusPop', 'Eroare autoload: populatie_2021.csv');
   }
 }
-
 window.addEventListener('load', loadAllCSVs);
 
 /* ===========================
@@ -754,7 +800,8 @@ function searchLockerUI(e){
 }
 
 /* ===========================
-   12) PERPLEXITY
+   12) PERPLEXITY (MODIFICAT)
+   - injectează automat datele din fișier (rezumat + top lockere)
 =========================== */
 async function askPerplexity(question, contextData=null){
   const apiKey = (window.PPLX_API_KEY || '').trim();
@@ -798,9 +845,37 @@ METRICI DIN LOCKERE:
 TOP lockere (1500m, după încărcare): ${JSON.stringify(m.r1500?.top||[])}`
   }
 
+  // (NOU) Injectăm context din fișierul lockere în user message
+  const ctx = buildLockersContextForAI({ topN: 60 });
+
+  let userPayload = question;
+
+  if(ctx.ok){
+    userPayload += `
+
+=== DATE DIN FIȘIER (LOCKERE) ===
+REZUMAT: ${JSON.stringify(ctx.summary)}
+TOP_LOCKERE: ${JSON.stringify(ctx.topLockers)}
+
+Instrucțiuni:
+- Bazează răspunsul pe aceste date și pe contextData (dacă există).
+- Dacă cer “top 10”, extrage top 10 din TOP_LOCKERE.
+- Nu inventa. Dacă datele nu ajung, spune exact ce lipsește.
+`;
+  } else {
+    userPayload += `
+
+=== DATE DIN FIȘIER (LOCKERE) ===
+NOTĂ: ${ctx.note}
+`;
+  }
+
   const messages = [
-    { role:'system', content: systemPrompt },
-    { role:'user', content: question }
+    {
+      role:'system',
+      content: systemPrompt + "\n\nIMPORTANT: Nu menționa trafic/metrou. Nu folosi browsing. Folosește doar datele primite în mesajul user + contextData."
+    },
+    { role:'user', content: userPayload }
   ];
 
   try{
@@ -973,7 +1048,11 @@ function zoneMetrics(lat, lng){
     return { count:list.length, avgLoad:+avgLoad.toFixed(1), avgTrendDelta:+avgTrendDelta.toFixed(1), installs12, top };
   }
 
-  return { r200: summarize(within200), r500: summarize(within500), r1500: summarize(within1500) };
+  return {
+    r200: summarize(within200),
+    r500: summarize(within500),
+    r1500: summarize(within1500)
+  };
 }
 
 function analyzeLocalData(lat, lng, cityName, judetName){
@@ -981,14 +1060,19 @@ function analyzeLocalData(lat, lng, cityName, judetName){
   const awb = judetName ? (data.awbJL[makeJLKey(judetName, cityName)] || 0) : 0;
 
   const metrics = zoneMetrics(lat, lng);
-  const anchors = [];
 
+  const anchors = [];
   (metrics.r1500.top || []).forEach(x=>{
     const n = (x.name||'').toLowerCase();
     ANCHORS.forEach(tag => { if(n.includes(tag) && !anchors.includes(tag)) anchors.push(tag); });
   });
 
-  return { pop, awb, city: cityName, judet: judetName || '', metrics, anchors };
+  return {
+    pop, awb,
+    city: cityName, judet: judetName || '',
+    metrics,
+    anchors
+  };
 }
 
 function toggleAddMode(){
