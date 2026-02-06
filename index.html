@@ -73,27 +73,13 @@
     .stat-name { font-size:9px; color:#666; text-transform:uppercase; }
 
     .leaflet-popup-content-wrapper { background:rgba(18,22,33,0.98); color:#eee; border:1px solid #444; border-radius:8px; box-shadow:0 10px 30px rgba(0,0,0,0.8); }
-    .leaflet-popup-content { width:320px !important; margin:15px; }
+    .leaflet-popup-content { width:290px !important; margin:15px; }
     .leaflet-popup-tip { background:#1a1e29; }
-
-    .popup-header {
-      font-weight:900; color:#00ff88; font-size:15px; text-align:center;
-      margin-bottom:12px; border-bottom:1px solid #444; padding-bottom:8px;
-      text-transform:none;
-    }
-    .popup-row {
-      display:flex; justify-content:space-between; align-items:flex-start;
-      font-size:12px; margin-bottom:6px; border-bottom:1px dashed #333; padding-bottom:4px; gap:10px;
-    }
-    .popup-label {
-      color:#bbb; font-weight:700; white-space:nowrap; min-width:140px;
-    }
-    .popup-value {
-      font-weight:700; color:#fff; text-align:right;
-    }
-    .val-high { color:#00ff88; }
-    .val-low { color:#ff3333; }
-    .val-warn { color:#ffcc00; }
+    .popup-header { font-weight:900; color:#00ff88; font-size:15px; text-align:center; margin-bottom:12px; border-bottom:1px solid #444; padding-bottom:8px; }
+    .popup-row { display:flex; justify-content:space-between; align-items:flex-start; font-size:12px; margin-bottom:6px; border-bottom:1px dashed #333; padding-bottom:4px; gap:10px; }
+    .popup-label { color:#888; font-weight:600; white-space:nowrap; }
+    .popup-value { font-weight:700; color:#fff; text-align:right; }
+    .val-high { color:#00ff88; } .val-low { color:#ff3333; } .val-warn { color:#ffcc00; }
 
     .loading-bar { height:3px; background:#333; width:100%; display:none; margin-top:5px; }
     .loading-fill { height:100%; background:#00ff88; width:0; transition:width 0.3s; }
@@ -175,10 +161,12 @@ const baseLight = L.tileLayer(
   'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
   { attribution:'© CARTO' }
 );
+
 const baseSat = L.tileLayer(
   'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
   { attribution:'Tiles © Esri' }
 );
+
 baseLight.addTo(map);
 
 const statusColors = {
@@ -233,7 +221,7 @@ function toNumMaybe(x){
   if (x==null) return NaN;
   let s = String(x).replace(/"/g,'').trim();
   if (!s) return NaN;
-  s = s.replace(/\./g,'').replace(/,/g,'.');
+  s = s.replace(/\./g,'').replace(/,/g,'.'); // toleranță
   const v = parseFloat(s);
   return isNaN(v) ? NaN : v;
 }
@@ -246,46 +234,6 @@ function getDist(lat1, lon1, lat2, lon2){
 }
 function htmlEscape(s){
   return String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-}
-function parseISODateLoose(s){
-  if(!s) return null;
-  const t = String(s).trim().split(' ')[0];
-  const m = t.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if(!m) return null;
-  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-  return isNaN(d.getTime()) ? null : d;
-}
-function extractSectorNumber(sectorText){
-  const s = norm(sectorText);
-  const m = s.match(/sector(ul)?\s*(\d)/);
-  return m ? Number(m[2]) : null;
-}
-
-/* --- POPUP FORMAT HELPERS --- */
-function fmtPct(x){
-  const v = Number(x);
-  return isFinite(v) ? v.toFixed(1) + '%' : '-';
-}
-function fmtNum1(x){
-  const v = Number(x);
-  return isFinite(v) ? v.toFixed(1) : (String(x ?? '-'));
-}
-function fmtDate(x){
-  const s = String(x ?? '').trim();
-  return s ? s : '-';
-}
-function trendWithIcon(trend){
-  const t = String(trend || '').toLowerCase();
-  if (t.includes('peste')) return '📈 Peste medie';
-  if (t.includes('sub')) return '📉 Sub medie';
-  return '➖ Stabil';
-}
-function loadClass(load){
-  const v = Number(load);
-  if (!isFinite(v)) return '';
-  if (v >= 90) return 'val-high';
-  if (v >= 75) return 'val-warn';
-  return 'val-low';
 }
 
 /* ------------------ 3) CACHE (IndexedDB) ------------------ */
@@ -317,11 +265,8 @@ function handleFileUpload(input, type){
     if(type==='cercuri') processCercuri(t);
 
     input.parentElement.style.borderColor = '#00ff88';
-
-    const statusMap = { lockers:'statusLockers', awb:'statusAWB', pop:'statusPop', cercuri:'statusCercuri' };
-    const el = document.getElementById(statusMap[type]);
+    const el = document.getElementById('status' + type.charAt(0).toUpperCase()+type.slice(1));
     if (el) el.innerText = 'Încărcat';
-
     speak('Fișierul ' + type + ' a fost procesat.');
   };
   r.readAsText(file);
@@ -339,6 +284,7 @@ function processLockers(csv){
 
   const h = splitCSV(lines[0]).map(x => x.replace(/"/g,'').trim());
 
+  // detect months columns (ex: Noiembrie 2025)
   h.forEach((col, idx) => {
     const m = col.match(/([A-Za-zăâîșțĂÂÎȘȚ]+)\s+(\d{4})/);
     if(m && !col.toLowerCase().includes('inactiv')){
@@ -379,6 +325,7 @@ function processLockers(csv){
     const lng = parseFloat(getVal(row, idx.lng).replace(',','.'));
     if(isNaN(lat) || isNaN(lng)) return;
 
+    // history avg (exclude zeros)
     const historyValues = [];
     detectedMonths.forEach(m=>{
       let v = toNumMaybe(getVal(row, m.idx));
@@ -427,29 +374,19 @@ function processLockers(csv){
       radius:7, fillColor:statusColors[status], color:'#000', weight:1, opacity:1, fillOpacity:0.85
     });
 
-    /* --- POPUP NOU (FORMATUL CERUT) --- */
     const popupContent = `
-      <div class="popup-header">${htmlEscape(locker.nume || 'easybox')}</div>
-
-      <div class="popup-row"><span class="popup-label">📍 Locație</span><span class="popup-value">${htmlEscape(locker.city || '-')}</span></div>
-      <div class="popup-row"><span class="popup-label">📬 Adresă</span><span class="popup-value" style="font-size:10px; max-width:170px;">${htmlEscape(locker.addr || '-')}</span></div>
-
-      <div class="popup-row"><span class="popup-label">📊 Încărcare Nov 2025</span><span class="popup-value ${loadClass(locker.loadNov25)}">${fmtPct(locker.loadNov25)}</span></div>
-      <div class="popup-row"><span class="popup-label">⏮️ Nov 2024</span><span class="popup-value">${fmtPct(locker.loadNov24)}</span></div>
-
-      <div class="popup-row"><span class="popup-label">📈 Trend</span><span class="popup-value">${htmlEscape(trendWithIcon(locker.trend))}</span></div>
-      <div class="popup-row"><span class="popup-label">⚖️ Medie Istorică</span><span class="popup-value">${fmtPct(locker.avgHist)}</span></div>
-
-      <div class="popup-row"><span class="popup-label">📦 Capacitate</span><span class="popup-value">${htmlEscape(fmtNum1(locker.cap))}</span></div>
-      <div class="popup-row"><span class="popup-label">⏱️ Inactivare</span><span class="popup-value">${htmlEscape(locker.daysOff)} zile</span></div>
-      <div class="popup-row"><span class="popup-label">📅 Instalare</span><span class="popup-value">${htmlEscape(fmtDate(locker.install))}</span></div>
-
-      <div class="popup-row" style="border-bottom:none; padding-bottom:0; margin-bottom:0;">
-        <span class="popup-label">🔧 Model</span><span class="popup-value">${htmlEscape(locker.model || '-')}</span>
-      </div>
+      <div class="popup-header">${htmlEscape(locker.nume)}</div>
+      <div class="popup-row"><span class="popup-label">Localitate</span><span class="popup-value">${htmlEscape(locker.city)}</span></div>
+      <div class="popup-row"><span class="popup-label">Adresă</span><span class="popup-value" style="font-size:10px; max-width:170px;">${htmlEscape(locker.addr)}</span></div>
+      <div class="popup-row"><span class="popup-label">Încărcare Nov 2025</span><span class="popup-value ${locker.loadNov25>=90?'val-high':'val-low'}">${locker.loadNov25.toFixed(1)}%</span></div>
+      <div class="popup-row"><span class="popup-label">Nov 2024</span><span class="popup-value">${locker.loadNov24.toFixed(1)}%</span></div>
+      <div class="popup-row"><span class="popup-label">Trend</span><span class="popup-value">${htmlEscape(locker.trend)}</span></div>
+      <div class="popup-row"><span class="popup-label">Medie istoric</span><span class="popup-value">${locker.avgHist.toFixed(1)}%</span></div>
+      <div class="popup-row"><span class="popup-label">Inactivare</span><span class="popup-value">${locker.daysOff} zile</span></div>
+      <div class="popup-row"><span class="popup-label">Instalare</span><span class="popup-value">${htmlEscape(locker.install)}</span></div>
     `;
 
-    m.bindPopup(popupContent, { maxWidth: 360 }); // opțional: limitează lățimea popup [web:120]
+    m.bindPopup(popupContent);
     layers[status].addLayer(m);
   });
 
@@ -466,11 +403,11 @@ function processAWB(csv){
   const lines = csv.split(/\r?\n/).filter(x=>x.trim().length);
   lines.forEach(l=>{
     const c = splitCSV(l);
-    const volIdx = c.findIndex(x=>String(x).toLowerCase().includes('nr total'));
-    const cityIdx = c.findIndex(x=>String(x).toLowerCase().includes('localitate'));
+    const volIdx = c.findIndex(x=>x.toLowerCase().includes('nr total'));
+    const cityIdx = c.findIndex(x=>x.toLowerCase().includes('localitate'));
     if(c.length>=2 && volIdx>-1 && cityIdx>-1){
       let volStr = String(c[volIdx]).replace(/"/g,'');
-      if(volStr.includes(',')) volStr = volStr.replace(/,/g,'');
+      if(volStr.includes(',')) volStr = volStr.replace(/,/g,''); // 1,014 -> 1014
       const vol = parseInt(volStr,10);
       const city = c[cityIdx];
       if(city && !isNaN(vol)){
@@ -502,46 +439,65 @@ function processPop(csv){
 }
 
 /* ------------------ 8) CERCURI CSV (AWB per localitate) ------------------ */
+/*
+  Din snippet-ul fișierului, ordinea/denumirea coloanelor e de tip:
+  Month, Judet Destinatar OPS, Categorie Cerc Livrare, Localitate Destinatar, ... , lockerNr Total AWB [etc] [file:97]
+  Practic: avem lună + județ + localitate + "Total AWB" (numeric) [file:97]
+*/
 function processCercuri(csv){
-  // îl lăsăm neschimbat acum; revii tu cu fișierul ok
   data.cercuri = [];
-  document.getElementById('statusCercuri').innerText = 'Cercuri încărcat (validare pending)';
+  const lines = csv.split(/\r?\n/).filter(x=>x.trim().length);
+  if(lines.length < 2) return;
+
+  const header = splitCSV(lines[0]).map(x=>x.replace(/"/g,'').trim());
+  // detect indices by fuzzy match
+  const idxMonth = header.findIndex(x => norm(x)==='month' || norm(x).includes('month'));
+  const idxJudet = header.findIndex(x => norm(x).includes('judet'));
+  const idxLoc = header.findIndex(x => norm(x).includes('localitate'));
+  const idxTotal = header.findIndex(x => norm(x).includes('total awb') || (norm(x).includes('awb') && norm(x).includes('total')));
+  // dacă nu găsim header (uneori fișierul poate să nu aibă header real), încercăm fallback pe poziții
+  // fallback-ul e conservator; dacă nu se pot citi, nu blocăm aplicația.
+  const fallback = { month:0, judet:1, localitate:3, total:7 };
+
+  lines.slice(1).forEach(l=>{
+    const row = splitCSV(l);
+    if(row.length < 5) return;
+
+    const monthRaw = row[(idxMonth>-1?idxMonth:fallback.month)] ?? '';
+    const judetRaw = row[(idxJudet>-1?idxJudet:fallback.judet)] ?? '';
+    const locRaw = row[(idxLoc>-1?idxLoc:fallback.localitate)] ?? '';
+    const totalRaw = row[(idxTotal>-1?idxTotal:fallback.total)] ?? '';
+
+    const month = String(monthRaw).replace(/"/g,'').trim();
+    const judet = String(judetRaw).replace(/"/g,'').trim();
+    const localitate = String(locRaw).replace(/"/g,'').trim();
+
+    let total = String(totalRaw).replace(/"/g,'').trim();
+    total = total.replace(/,/g,''); // 2,074 -> 2074 (mii)
+    const totalAwb = parseInt(total, 10);
+    if(!localitate || !judet || isNaN(totalAwb)) return;
+
+    data.cercuri.push({
+      month,
+      judet,
+      localitate,
+      totalAwb
+    });
+  });
+
+  document.getElementById('statusCercuri').innerText = `Cercuri OK: ${data.cercuri.length} rânduri`;
 }
 
-/* ------------------ 9) KPI localitate (date_lockere) ------------------ */
+/* ------------------ 9) ANALIZE LOCALE + CERCURI (corelare) ------------------ */
 function getCityLockerCount(cityName){
   const key = norm(cityName);
   if(!key) return 0;
   return data.lockers.filter(l => norm(l.city) === key).length;
 }
-function lastYearKPIsForCity(cityName){
-  const key = norm(cityName);
-  const now = new Date();
-  const oneYearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
-  const inCity = data.lockers.filter(l => norm(l.city) === key);
-  const installedLastYear = inCity.filter(l => {
-    const d = parseISODateLoose(l.install);
-    return d && d >= oneYearAgo;
-  });
-  const avgLoadLastYear = installedLastYear.length
-    ? installedLastYear.reduce((s,l)=>s + (Number(l.avgHist)||0), 0) / installedLastYear.length
-    : 0;
-  const positiveSignal = (installedLastYear.length > 0 && avgLoadLastYear > 45);
-  const negativeSignal = (installedLastYear.length === 0 || avgLoadLastYear <= 45);
-
-  return {
-    city: cityName,
-    cityLockerCount: inCity.length,
-    installedLastYearCount: installedLastYear.length,
-    avgLoadInstalledLastYear: avgLoadLastYear,
-    positiveSignal,
-    negativeSignal
-  };
-}
 function summarizeCercuriFor(judetName, localitateName){
   const j = norm(judetName);
   const loc = norm(localitateName);
-  if(!j || !loc) return { total:0, byMonth:{}, rowsCount:0 };
+  if(!j || !loc) return { total:0, byMonth:{} };
 
   const rows = data.cercuri.filter(r => norm(r.judet)===j && norm(r.localitate)===loc);
   const byMonth = {};
@@ -554,10 +510,11 @@ function summarizeCercuriFor(judetName, localitateName){
   return { total, byMonth, rowsCount: rows.length };
 }
 
-/* ------------------ 10) ANALIZE LOCALE (context AI) ------------------ */
 function analyzeLocalData(lat, lng, cityName){
   const cityKey = norm(cityName);
   let pop = 0, awb = 0;
+
+  // pop/awb din fișierele tale clasice
   for(const k in data.pop){ if(cityKey.includes(k)) pop = Math.max(pop, data.pop[k]); }
   for(const k in data.awb){ if(cityKey.includes(k)) awb = Math.max(awb, data.awb[k]); }
 
@@ -566,20 +523,20 @@ function analyzeLocalData(lat, lng, cityName){
   data.lockers.forEach(l=>{
     const d = getDist(lat,lng,l.lat,l.lng);
     if(d <= 500){
-      neighbors.push({ name:l.nume, load:l.loadNov25, dist:d, city:l.city, install:l.install, avgHist:l.avgHist });
+      neighbors.push({ name:l.nume, load:l.loadNov25, dist:d });
     }
     const n = (l.nume||'').toLowerCase();
     ANCHORS.forEach(tag=>{
       if(n.includes(tag) && !anchors.includes(tag)) anchors.push(tag);
     });
   });
+
   neighbors.sort((a,b)=>a.dist-b.dist);
 
-  const kpis = lastYearKPIsForCity(cityName);
-  return { pop, awb, neighbors, anchors, city: cityName, kpis };
+  return { pop, awb, neighbors, anchors, city: cityName };
 }
 
-/* ------------------ 11) SIMULARE (doar addMode) ------------------ */
+/* ------------------ 10) SIMULARE (doar addMode) ------------------ */
 function simulatePoint(lat, lng, meta){
   layers['Simulare'].clearLayers();
 
@@ -604,25 +561,22 @@ function simulatePoint(lat, lng, meta){
       <span class="popup-label">${x.d} m</span>
       <span class="popup-value" style="max-width:190px; font-size:11px;">
         ${htmlEscape(x.nume||'Locker')}<br/>
-        <span style="color:#aaa; font-weight:600;">${htmlEscape(x.city||'-')} • avg:${Number(x.avgHist||0).toFixed(1)}% • Nov25:${Number(x.loadNov25||0).toFixed(1)}%</span>
+        <span style="color:#aaa; font-weight:600;">${htmlEscape(x.city||'-')} • Nov:${Number(x.loadNov25||0).toFixed(1)}% • off:${Number(x.daysOff||0)}z</span>
       </span>
     </div>
   `).join("");
 
+  // corelare cercuri.csv (Județ + Localitate)
   const judet = meta?.judet || "";
   const city = meta?.city || "Locație";
   const sector = meta?.sector || "";
 
   const lockerCountCity = getCityLockerCount(city);
-  const kpis = lastYearKPIsForCity(city);
-
   const cer = summarizeCercuriFor(judet, city);
   const cerMonths = Object.keys(cer.byMonth).sort((a,b)=>a.localeCompare(b)).slice(0, 6);
   const cerMonthsHtml = cerMonths.map(m => `
     <div class="popup-row"><span class="popup-label">AWB ${htmlEscape(m)}</span><span class="popup-value">${(cer.byMonth[m]||0).toLocaleString('ro-RO')}</span></div>
   `).join("");
-
-  const monitorFlag = kpis.positiveSignal ? "POZITIV" : "NEGATIV";
 
   const html = `
     <div class="popup-header">Locație simulată</div>
@@ -631,11 +585,7 @@ function simulatePoint(lat, lng, meta){
     <div class="popup-row"><span class="popup-label">Județ</span><span class="popup-value">${htmlEscape(judet || '-')}</span></div>
     <div class="popup-row"><span class="popup-label">Sector</span><span class="popup-value">${htmlEscape(sector || '-')}</span></div>
 
-    <div class="popup-row"><span class="popup-label">Lockere (localitate)</span><span class="popup-value">${lockerCountCity}</span></div>
-    <div class="popup-row"><span class="popup-label">Instalate ultimul an</span><span class="popup-value">${kpis.installedLastYearCount}</span></div>
-    <div class="popup-row"><span class="popup-label">Avg load (ultimul an)</span><span class="popup-value">${kpis.avgLoadInstalledLastYear.toFixed(1)}%</span></div>
-    <div class="popup-row"><span class="popup-label">Monitorizare</span><span class="popup-value ${kpis.positiveSignal?'val-high':'val-low'}">${monitorFlag}</span></div>
-
+    <div class="popup-row"><span class="popup-label">Lockere în localitate</span><span class="popup-value">${lockerCountCity}</span></div>
     <div class="popup-row"><span class="popup-label">Lockere ≤200m</span><span class="popup-value">${within200.length}</span></div>
     <div class="popup-row"><span class="popup-label">Lockere ≤500m</span><span class="popup-value">${within500.length}</span></div>
 
@@ -650,8 +600,9 @@ function simulatePoint(lat, lng, meta){
   return { within200, within500, nearest };
 }
 
-/* ------------------ 12) Reverse geocode (city/județ/sector) ------------------ */
+/* ------------------ 11) Reverse geocode (city/judet/sector) ------------------ */
 async function reverseMeta(lat, lng){
+  // Nominatim e best-effort; sector pentru București apare uneori ca suburb/city_district/quarter.
   const meta = { city:"Locație", judet:"", sector:"" };
   try{
     const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
@@ -659,15 +610,12 @@ async function reverseMeta(lat, lng){
     const a = d.address || {};
     meta.city = a.city || a.town || a.village || a.municipality || meta.city;
     meta.judet = a.county || a.state || "";
-
-    meta.sector = a.city_district || a.suburb || a.quarter || a.district || "";
-    const secN = extractSectorNumber(meta.sector);
-    if(secN) meta.sector = "Sector " + secN;
+    meta.sector = a.city_district || a.suburb || a.quarter || "";
   }catch(e){}
   return meta;
 }
 
-/* ------------------ 13) PERPLEXITY AI ------------------ */
+/* ------------------ 12) PERPLEXITY AI ------------------ */
 async function askPerplexity(question, contextData=null){
   const apiKey = document.getElementById('apiKey').value.trim();
   if(!apiKey){ alert('Te rog introdu cheia API Perplexity (pplx-....)'); return; }
@@ -684,17 +632,6 @@ async function askPerplexity(question, contextData=null){
       `\n- Volum AWB (dacă există): ${contextData.awb}` +
       `\n- Lockere existente în 500m: ${JSON.stringify(contextData.neighbors)}` +
       `\n- Ancore comerciale: ${contextData.anchors.join(', ')}`;
-
-    if(contextData.kpis){
-      systemPrompt +=
-        `\n- Monitorizare lockere instalate (localitate):` +
-        `\n  • Lockere în localitate: ${contextData.kpis.cityLockerCount}` +
-        `\n  • Instalate în ultimul an: ${contextData.kpis.installedLastYearCount}` +
-        `\n  • Încărcare medie (instalate în ultimul an): ${contextData.kpis.avgLoadInstalledLastYear.toFixed(1)}%` +
-        `\nINSTRUCȚIUNE DECIZIE:` +
-        `\n- Dacă există lockere instalate în ultimul an și încărcarea medie a acestora este >45%, marchează acest aspect ca POZITIV și fii mai înclinat spre recomandare de extindere (dacă nu există alte riscuri majore).` +
-        `\n- Dacă nu există instalări în ultimul an sau încărcarea medie este <=45%, marchează acest aspect ca NEGATIV și fii mai conservator (optimizare înainte de extindere).`;
-    }
   }
 
   const messages = [
@@ -726,7 +663,7 @@ async function askPerplexity(question, contextData=null){
   }
 }
 
-/* ------------------ 14) VOICE + INPUT ------------------ */
+/* ------------------ 13) VOICE + INPUT ------------------ */
 const synth = window.speechSynthesis;
 let recognition=null;
 let isListening=false;
@@ -770,7 +707,7 @@ function handleInput(e, fromVoice=false){
   }
 }
 
-/* ------------------ 15) AUTO-SCAN ------------------ */
+/* ------------------ 14) AUTO-SCAN ------------------ */
 async function runAutoScanWrapper(city){
   if(!city || city.length<3) return;
   speak('Analizez ' + city + '...');
@@ -799,7 +736,7 @@ function startAutoScanWrapper(){
   if(city) runAutoScanWrapper(city);
 }
 
-/* ------------------ 16) ADD MODE + CLICK HANDLER ------------------ */
+/* ------------------ 15) ADD MODE + CLICK HANDLER ------------------ */
 function toggleAddMode(){
   addMode = !addMode;
   const btn = document.getElementById('addModeBtn');
@@ -817,6 +754,7 @@ function toggleAddMode(){
   }
 }
 
+// CLICK: doar în addMode
 map.on('click', async e => {
   if(!addMode) return;
 
@@ -830,7 +768,7 @@ map.on('click', async e => {
   askPerplexity(`Analizează potențialul unui locker aici: ${lat}, ${lng}`, context);
 });
 
-/* ------------------ 17) RESET ------------------ */
+/* ------------------ 16) RESET ------------------ */
 function resetAll(){
   Object.values(layers).forEach(l => l.clearLayers());
   document.getElementById('aiResponse').style.display = 'none';
