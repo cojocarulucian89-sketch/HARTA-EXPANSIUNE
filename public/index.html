@@ -336,12 +336,39 @@ function getDist(lat1, lon1, lat2, lon2){
   return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
 }
 
-function ymdToDate(ymd){
-  if(!ymd) return null;
-  const s = String(ymd).trim().slice(0,10);
-  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if(!m) return null;
-  return new Date(parseInt(m[1],10), parseInt(m[2],10)-1, parseInt(m[3],10));
+function ymdToDate(raw){
+  if(!raw) return null;
+
+  // curățare: scoate ghilimele simple/duble și virgule finale
+  let s = String(raw).trim();
+  s = s.replace(/['"]/g, '').replace(/,+$/g, '').trim();
+  if(!s) return null;
+
+  // caz 1: "YYYY-MM-DD" sau "YYYY-MM-DD HH:MM:SS"
+  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/);
+  if(m){
+    const y = +m[1], mo = +m[2], d = +m[3];
+    const hh = m[4] ? +m[4] : 0;
+    const mm = m[5] ? +m[5] : 0;
+    const ss = m[6] ? +m[6] : 0;
+    return new Date(y, mo - 1, d, hh, mm, ss);
+  }
+
+  // caz 2: "DD.MM.YYYY" / "DD/MM/YYYY" / "DD-MM-YYYY" (cu sau fără timp)
+  m = s.match(/^(\d{2})[.\/-](\d{2})[.\/-](\d{4})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/);
+  if(m){
+    const d = +m[1], mo = +m[2], y = +m[3];
+    const hh = m[4] ? +m[4] : 0;
+    const mm = m[5] ? +m[5] : 0;
+    const ss = m[6] ? +m[6] : 0;
+    return new Date(y, mo - 1, d, hh, mm, ss);
+  }
+
+  // fallback: ISO cu T/Z (dacă apare)
+  const t = Date.parse(s);
+  if(!Number.isNaN(t)) return new Date(t);
+
+  return null;
 }
 
 function monthsAgo(d){
