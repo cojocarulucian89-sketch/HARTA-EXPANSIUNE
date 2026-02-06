@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <title>🕵️‍♂️ QUEST DETECTIVE - PERPLEXITY EDITION</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; margin: 0; padding: 0; background: #222; color: #e0e0e0; overflow: hidden; font-size: 14px; }
+        #map { height: 100vh; width: 100%; position: relative; z-index: 1;}
+
+        .quest-panel {
+            position: absolute; top: 15px; left: 15px;
+            background: rgba(18, 22, 33, 0.98);
+            border: 1px solid #333;
+            width: 360px; padding: 20px;
+            border-radius: 12px; z-index: 1000;
+            box-shadow: 0 0 30px rgba(0,0,0,0.6);
+            max-height: 90vh; overflow-y: auto;
+        }
+        
+        .quest-title {
+            font-family: 'Inter', sans-serif; font-size: 20px; font-weight: 800; color: #00ff88;
+            margin-bottom: 15px; text-transform: uppercase; border-bottom: 2px solid #00ff88; padding-bottom: 10px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+
+        .quest-label { font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase; margin-bottom: 5px; display: block; }
+        .quest-input-group { margin-bottom: 15px; background: #1a1e29; padding: 10px; border-radius: 8px; border: 1px solid #333; }
+        input[type="file"] { width: 100%; font-size: 11px; color: #ccc; border: none; background: transparent; }
+        
+        .api-input {
+            width: 100%; padding: 8px; background: #000; border: 1px solid #00ff88; color: #00ff88;
+            font-family: monospace; border-radius: 4px; box-sizing: border-box; margin-bottom: 5px; font-size: 11px;
+        }
+
+        .quest-search {
+            width: 100%; padding: 10px; background: #111; border: 1px solid #444; color: #fff;
+            font-family: 'Inter', sans-serif; border-radius: 6px; box-sizing: border-box;
+        }
+        .quest-search:focus { outline: none; border-color: #00ff88; }
+
+        .quest-btn {
+            width: 100%; padding: 10px; margin-top: 5px; background: #111; border: 1px solid #00ff88;
+            color: #00ff88; font-family: 'Inter', sans-serif; font-weight: 800; cursor: pointer;
+            text-transform: uppercase; transition: 0.3s; border-radius: 6px;
+        }
+        .quest-btn:hover { background: #00ff88; color: #000; }
+        .btn-scan { border-color: #ff00cc; color: #ff00cc; }
+        .btn-scan:hover { background: #ff00cc; color: #fff; }
+
+        .mic-btn {
+            background: transparent; border: 1px solid #444; color: #aaa; width: 30px; height: 30px;
+            border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.3s;
+        }
+        .mic-btn.active { border-color: #00ff88; color: #00ff88; box-shadow: 0 0 10px rgba(0,255,136,0.4); animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+
+        #aiFeedback { font-size: 11px; color: #aaa; margin-top: 5px; min-height: 15px; text-align: center; }
+        .ai-response-box {
+            background: rgba(0, 255, 136, 0.05); border: 1px solid #00ff88; padding: 10px; margin-top: 10px;
+            border-radius: 6px; font-size: 12px; line-height: 1.5; color: #fff; display: none;
+        }
+
+        .stats-container { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 15px; }
+        .stat-box { background: #111; border: 1px solid #333; border-radius: 6px; padding: 8px; text-align: center; }
+        .stat-val { font-size: 16px; font-weight: 800; color: #fff; }
+        .stat-name { font-size: 9px; color: #666; text-transform: uppercase; }
+
+        .leaflet-popup-content-wrapper { 
+            background: rgba(18, 22, 33, 0.98); color: #eee; border: 1px solid #444; border-radius: 8px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+        }
+        .leaflet-popup-content { width: 280px !important; margin: 15px; }
+        .leaflet-popup-tip { background: #1a1e29; }
+        
+        .popup-header { 
+            font-weight: 900; color: #00ff88; font-size: 15px; text-align: center; 
+            margin-bottom: 12px; border-bottom: 1px solid #444; padding-bottom: 8px; 
+        }
+        
+        .popup-row { 
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 12px; margin-bottom: 6px; border-bottom: 1px dashed #333; padding-bottom: 4px; 
+        }
+        .popup-label { color: #888; font-weight: 600; }
+        .popup-value { font-weight: 700; color: #fff; text-align: right; }
+        
+        .val-high { color: #00ff88; } 
+        .val-low { color: #ff3333; }
+
+        .loading-bar { height: 3px; background: #333; width: 100%; display: none; margin-top:5px; }
+        .loading-fill { height: 100%; background: #00ff88; width: 0%; transition: width 0.3s; }
+        
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #111; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    </style>
+</head>
+<body>
+
+    <div id="map"></div>
+
+    <div class="quest-panel">
+        <div class="quest-title">
+            QUEST DETECTIVE AI
+            <button class="mic-btn" id="micBtn" onclick="toggleVoice()" title="Microfon">🎙️</button>
+        </div>
+
+        <div class="quest-input-group" style="border-color: #00ff88;">
+            <span class="quest-label" style="color:#00ff88">🧠 PERPLEXITY API KEY</span>
+            <input type="password" id="apiKey" class="api-input" placeholder="pplx-xxxxxxxxxxxxxxxxxxxx">
+        </div>
+
+        <div class="quest-input-group">
+            <span class="quest-label">1. LOCKERE (CSV)</span>
+            <input type="file" onchange="handleFileUpload(this, 'lockers')">
+            <div id="statusLockers" style="font-size:10px; color:#555; margin-top:2px;">Așteptare fișier...</div>
+        </div>
+
+        <div class="quest-input-group">
+            <span class="quest-label">2. VOLUME AWB (CSV)</span>
+            <input type="file" onchange="handleFileUpload(this, 'awb')">
+            <div id="statusAWB" style="font-size:10px; color:#555; margin-top:2px;">Așteptare fișier...</div>
+        </div>
+
+        <div class="quest-input-group">
+            <span class="quest-label">3. POPULAȚIE (CSV)</span>
+            <input type="file" onchange="handleFileUpload(this, 'pop')">
+            <div id="statusPop" style="font-size:10px; color:#555; margin-top:2px;">Așteptare fișier...</div>
+        </div>
+
+        <div class="quest-input-group">
+            <span class="quest-label">💬 ASISTENT INTELIGENT</span>
+            <input type="text" id="searchInput" class="quest-search" placeholder="Ex: Analizează Baicului..." onkeyup="handleInput(event)">
+            <div id="aiFeedback">Sistem gata.</div>
+            <div id="aiResponse" class="ai-response-box"></div>
+        </div>
+
+        <button onclick="startAutoScanWrapper()" class="quest-btn btn-scan">🚀 AUTO-SCAN ZONA</button>
+        <button onclick="toggleAddMode()" id="addModeBtn" class="quest-btn">🎯 ANALIZĂ PUNCTUALĂ</button>
+        <button onclick="resetAll()" class="quest-btn" style="border-color:#ff3333; color:#ff3333">🗑️ RESET</button>
+
+        <div class="stats-container">
+            <div class="stat-box"><div class="stat-val" id="totalVal">0</div><div class="stat-name">Lockere</div></div>
+            <div class="stat-box"><div class="stat-val" style="color:#ff0033" id="criticVal">0</div><div class="stat-name">Critic</div></div>
+            <div class="stat-box"><div class="stat-val" style="color:#ffae00" id="warnVal">0</div><div class="stat-name">Atenție</div></div>
+            <div class="stat-box"><div class="stat-val" style="color:#00ff88" id="okVal">0</div><div class="stat-name">Optim</div></div>
+        </div>
+        
+        <div class="loading-bar" id="loadBar"><div class="loading-fill" id="loadFill"></div></div>
+    </div>
+
+    <script>
+        // --- 1. CONFIGURARE HARTA ---
+        const map = L.map('map', {zoomControl: false}).setView([46.00, 25.00], 7);
+        L.control.zoom({position: 'topright'}).addTo(map);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: '© CARTO' }).addTo(map);
+
+        // --- 2. VARIABILE ---
+        let data = { lockers: [], awb: {}, pop: {}, popJudet: {} };
+        let detectedMonths = [];
+        let addMode = false;
+        
+        const ANCHORS = ["kaufland", "lidl", "carrefour", "auchan", "mega", "profi", "mall", "plaza", "piata", "residence", "complex", "gara", "universitate", "spital", "market"];
+        const MONTHS = {'ianuarie':0,'februarie':1,'martie':2,'aprilie':3,'mai':4,'iunie':5,'iulie':6,'august':7,'septembrie':8,'octombrie':9,'noiembrie':10,'decembrie':11};
+        const statusColors = { 'Critic Urgent': '#d60000', 'Critic Standard': '#e67e22', 'Atenție': '#f1c40f', 'Standard': '#27ae60' };
+        
+        const layers = {
+            'Critic Urgent': L.layerGroup().addTo(map),
+            'Critic Standard': L.layerGroup().addTo(map),
+            'Atenție': L.layerGroup().addTo(map),
+            'Standard': L.layerGroup().addTo(map),
+            'Propuneri': L.layerGroup().addTo(map)
+        };
+
+        // --- 3. PERPLEXITY AI INTEGRATION ---
+        async function askPerplexity(question, contextData = null) {
+            const apiKey = document.getElementById('apiKey').value.trim();
+            if(!apiKey) { alert("Te rog introdu cheia API Perplexity (pplx-...)."); return; }
+
+            const responseBox = document.getElementById('aiResponse');
+            responseBox.style.display = 'block';
+            responseBox.innerHTML = "<i>Perplexity analizează datele...</i>";
+
+            let systemPrompt = `
+Ești un analist logistic senior pentru rețeaua easybox. Evaluezi o locație propusă folosind EXCLUSIV datele din context (din fișiere + calcule).
+
+INTERPRETARE CRITICĂ:
+- "zile inactivare" = semnal de lipsă capacitate/volum mare pe locker (locker indisponibil pentru încărcare din cauza supraîncărcării/capacității insuficiente), nu presupune automat defect tehnic.
+
+VERDICT (doar 3 valori permise):
+- Verdict: [Pozitiv / Neutru / Negativ]
+
+OBLIGATORIU ÎN ARGUMENTARE (cu cifre din context):
+- Încărcare medie zonă (0–500m, 500–1000m, 0–1000m) + pct75/85/95.
+- Nr lockere în raze + densitate (inclusiv count_500_1000).
+- Trend YoY (Nov25 - Nov24) folosind yoyNov (n, avgDiff, medianDiff).
+- Instalări: câte lockere <12 luni (installAges.lt12) și interpretare.
+- Calitatea datelor: coverageLast12Pct, last12.points, last12.sampleLastMonth, yoyNov.n.
+- Demografie: populația localității + persoane/locker (popPerLockerLocality) și lockere/10k locuitori (lockersPer10kLocality) dacă există.
+
+FORMAT OUTPUT (în această ordine):
+1) Verdict: [Pozitiv/Neutru/Negativ]
+2) Argumente numerice (0–500m): 4–6 bullets
+3) Argumente numerice (500–1000m): 4–6 bullets
+4) Argumente numerice (0–1000m total): 3–6 bullets
+5) Calitatea datelor: 2–4 bullets
+6) Forecast: 2–3 scenarii (Baseline/Optimist/Precaut) bazate pe trend + încărcări + semnal capacitate (inactivare)
+7) Recomandări: 3–6 acțiuni tehnice, fiecare legată de un număr
+
+REGULI:
+- Nu folosi informații externe despre zonă.
+- Nu inventa valori; citează doar ce apare în context.
+- Dacă datele sunt insuficiente sau inconsistente, verdictul devine Neutru și explici de ce.
+`.trim();
+
+            if(contextData) systemPrompt += `\n\nCONTEXT LOCAL (DIN FIȘIERE + CALCULE):\n${JSON.stringify(contextData)}\n`;
+
+            const messages = [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: question }
+            ];
+
+            try {
+                const response = await fetch('https://api.perplexity.ai/chat/completions', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ model: "sonar-pro", messages })
+                });
+
+                const json = await response.json();
+                if(json.error) throw new Error(json.error.message);
+                
+                const rawText = json.choices[0].message.content;
+                responseBox.innerHTML = marked.parse(rawText);
+                
+                let cleanText = rawText.replace(/[*#_`]/g, '').split('.').slice(0, 2).join('.');
+                speak(cleanText);
+
+            } catch(e) {
+                console.error(e);
+                responseBox.innerText = "Eroare API Perplexity: " + e.message;
+                speak("A apărut o eroare la conectarea cu Perplexity.");
+            }
+        }
+
+        // --- 4. DATA PROCESSING ---
+        function handleFileUpload(input, type) {
+            const file = input.files[0];
+            if(!file) return;
+            const r = new FileReader();
+            r.onload = e => {
+                const t = e.target.result;
+                if(type==='lockers') processLockers(t);
+                else if(type==='awb') processAWB(t);
+                else if(type==='pop') processPop(t);
+                input.parentElement.style.borderColor = "#00ff88"; 
+                document.getElementById('status' + (type.charAt(0).toUpperCase() + type.slice(1))).innerText = "✅ Încărcat";
+                speak(`Fișierul ${type} a fost procesat.`);
+            };
+            r.readAsText(file);
+        }
+
+        function splitCSV(str) {
+            const res = []; let curr = ''; let inQt = false;
+            for(let c of str){
+                if(c === '"') inQt = !inQt;
+                else if((c === ',' || c === ';') && !inQt) { res.push(curr.trim()); curr = ''; }
+                else curr += c;
+            }
+            res.push(curr.trim());
+            return res;
+        }
+
+        function norm(s) {
+            return s ? String(s).toLowerCase()
+              .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+              .replace(/[^a-z0-9]/g, "")
+              .trim() : "";
+        }
+
+        function cleanLocalityName(name) {
+            // scoate prefixe din fișier: MUNICIPIUL/ORAS/ORAȘ/COMUNA/MUN.
+            let s = String(name || "").trim();
+            s = s.replace(/\s+/g, " ");
+            s = s.replace(/^(MUNICIPIUL|MUN\.?|ORAS|ORAȘ|COMUNA)\s+/i, "");
+            return s.trim();
+        }
+
+        function buildLocalityKeys(rawName) {
+            // returnează chei posibile pentru matching (cu/ fără prefixe, cu/ fără "sectorul")
+            const base = cleanLocalityName(rawName);
+            const keys = new Set();
+            keys.add(norm(rawName));
+            keys.add(norm(base));
+
+            // București sectoare (dacă apar)
+            const m = base.match(/sectorul\s*(\d+)/i);
+            if(m) {
+                keys.add(norm("sectorul " + m[1]));
+                keys.add(norm("sector " + m[1]));
+            }
+            return Array.from(keys).filter(Boolean);
+        }
+
+        function parsePct(raw) {
+            if(raw === null || raw === undefined) return null;
+            let s = String(raw).replace(/['"]+/g, '').trim();
+            if(!s) return null;
+            s = s.replace('%','');
+            let v = parseFloat(s);
+            if(isNaN(v)) return null;
+            return (v < 1.5 && v > 0) ? v * 100 : v;
+        }
+
+        function processLockers(csv) {
+            Object.values(layers).forEach(g => g.clearLayers());
+            data.lockers = [];
+            let stats = { 'Critic Urgent':0, 'Critic Standard':0, 'Atenție':0, 'Standard':0 };
+            
+            const lines = csv.split('\n').filter(x => x.trim().length);
+            const h = splitCSV(lines[0]).map(x => x.replace(/['"]+/g, ''));
+
+            detectedMonths = [];
+            h.forEach((col, idx) => {
+                const cleanCol = String(col).trim();
+                const m = cleanCol.match(/([a-zA-ZăâîșțĂÂÎȘȚ]+)\s+(\d{4})/);
+                if(m && !cleanCol.toLowerCase().includes('inactiv')) {
+                    const mon = m[1].toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                    const yr = parseInt(m[2]);
+                    if(MONTHS.hasOwnProperty(mon)) detectedMonths.push({ name: cleanCol, idx: idx, val: yr*12 + MONTHS[mon] });
+                }
+            });
+            detectedMonths.sort((a,b) => a.val - b.val);
+
+            const idxNov25 = h.findIndex(x => x.toLowerCase().includes('noiembrie 2025') && !x.toLowerCase().includes('inactiv'));
+            const idxNov24 = h.findIndex(x => x.toLowerCase().includes('noiembrie 2024') && !x.toLowerCase().includes('inactiv'));
+
+            const idx = {
+                nume: h.indexOf('Locker Nume'),
+                lat: h.indexOf('Latitudine'),
+                lng: h.indexOf('Longitudine'),
+                install: h.indexOf('Data instalare'),
+                cap: h.indexOf('Capacitate locker'),
+                addr: h.indexOf('Adresa'),
+                model: h.indexOf('Model'),
+                city: h.indexOf('Locker Oras'),
+                inactiv: h.findIndex(x => x.includes('Zile inactivare') && x.includes('Noiembrie 2025'))
+            };
+            if(idx.inactiv === -1) idx.inactiv = h.findIndex(x => x.toLowerCase().includes('inactiv'));
+
+            const lastMonthVal = detectedMonths.length ? detectedMonths[detectedMonths.length - 1].val : null;
+            const last12StartVal = (lastMonthVal !== null) ? (lastMonthVal - 11) : null;
+
+            lines.slice(1).forEach(l => {
+                const row = splitCSV(l);
+                if(row.length < h.length) return;
+
+                const getVal = i => i > -1 ? String(row[i]).replace(/['"]+/g, '') : '';
+                
+                let lat = parseFloat(getVal(idx.lat));
+                let lng = parseFloat(getVal(idx.lng));
+                if(isNaN(lat) || isNaN(lng)) return;
+
+                let monthlySeries = [];
+                detectedMonths.forEach(m => {
+                    const v = parsePct(getVal(m.idx));
+                    if(v !== null) monthlySeries.push({ t: m.val, name: m.name, v: v });
+                });
+
+                let last12 = [];
+                if(last12StartVal !== null) last12 = monthlySeries.filter(p => p.t >= last12StartVal && p.t <= lastMonthVal);
+
+                let sumHist = 0, countHist = 0;
+                monthlySeries.forEach(p => { if(p.v > 0) { sumHist += p.v; countHist++; }});
+                let avgHist = countHist > 0 ? (sumHist / countHist) : 0;
+
+                let loadNov25 = 0, loadNov24 = 0;
+                if(idxNov25 > -1) loadNov25 = parsePct(getVal(idxNov25)) || 0;
+                if(idxNov24 > -1) loadNov24 = parsePct(getVal(idxNov24)) || 0;
+
+                let trendStr = "➖ Stabil";
+                if(loadNov25 > loadNov24 + 5) trendStr = "📈 Peste medie";
+                else if(loadNov25 < loadNov24 - 5) trendStr = "📉 Sub medie";
+
+                let daysOff = parseInt(getVal(idx.inactiv)) || 0;
+                let cleanInst = getVal(idx.install).split(' ')[0];
+                
+                let status = 'Standard';
+                if(loadNov25 > 95 || daysOff > 5) status = 'Critic Urgent';
+                else if(loadNov25 > 85) status = 'Critic Standard';
+                else if(loadNov25 > 75) status = 'Atenție';
+                stats[status]++;
+
+                let locker = {
+                    nume: getVal(idx.nume), lat, lng, 
+                    loadNov25, loadNov24, avgHist, trend: trendStr,
+                    install: cleanInst, cap: getVal(idx.cap), model: getVal(idx.model), 
+                    addr: getVal(idx.addr), city: getVal(idx.city), daysOff,
+                    last12m: last12,
+                    last12mCount: last12.length,
+                    lastMonth: detectedMonths.length ? detectedMonths[detectedMonths.length - 1].name : null,
+                    cityKey: norm(getVal(idx.city))
+                };
+                data.lockers.push(locker);
+
+                const m = L.circleMarker([lat, lng], { radius: 7, fillColor: statusColors[status], color: '#000', weight: 1, opacity: 1, fillOpacity: 0.8 });
+                
+                let popupContent = `
+                    <div class="popup-header">${locker.nume}</div>
+                    <div class="popup-row"><span class="popup-label">📍 Locație:</span> <span class="popup-value">${locker.city}</span></div>
+                    <div class="popup-row"><span class="popup-label">📬 Adresă:</span> <span class="popup-value" style="font-size:10px; max-width:150px;">${locker.addr}</span></div>
+                    <div class="popup-row"><span class="popup-label">📊 Încărcare Nov 2025:</span> <span class="popup-value ${loadNov25>90?'val-low':'val-high'}">${locker.loadNov25.toFixed(1)}%</span></div>
+                    <div class="popup-row"><span class="popup-label">⏮️ Nov 2024:</span> <span class="popup-value">${locker.loadNov24.toFixed(1)}%</span></div>
+                    <div class="popup-row"><span class="popup-label">📈 Trend:</span> <span class="popup-value">${locker.trend}</span></div>
+                    <div class="popup-row"><span class="popup-label">⚖️ Medie Istorică:</span> <span class="popup-value">${locker.avgHist.toFixed(1)}%</span></div>
+                    <div class="popup-row"><span class="popup-label">🗓️ Luni ultim an:</span> <span class="popup-value">${locker.last12mCount}/12</span></div>
+                    <div class="popup-row"><span class="popup-label">📦 Capacitate:</span> <span class="popup-value">${locker.cap}</span></div>
+                    <div class="popup-row"><span class="popup-label">⏱️ Inactivare:</span> <span class="popup-value">${locker.daysOff} zile</span></div>
+                    <div class="popup-row"><span class="popup-label">📅 Instalare:</span> <span class="popup-value">${locker.install}</span></div>
+                    <div class="popup-row"><span class="popup-label">🔧 Model:</span> <span class="popup-value">${locker.model}</span></div>
+                `;
+                
+                m.bindPopup(popupContent);
+                layers[status].addLayer(m);
+            });
+
+            document.getElementById('totalVal').innerText = data.lockers.length;
+            document.getElementById('criticVal').innerText = stats['Critic Urgent'];
+            document.getElementById('warnVal').innerText = stats['Atenție'];
+            document.getElementById('okVal').innerText = stats['Standard'];
+            document.getElementById('statusLockers').innerText = `✅ Actualizat: ${data.lockers.length} unități`;
+        }
+
+        function processAWB(csv) {
+            data.awb = {};
+            csv.split('\n').forEach(l => {
+                const c = splitCSV(l);
+                let volIdx = c.findIndex(x => x.toLowerCase().includes("nr total"));
+                let cityIdx = c.findIndex(x => x.toLowerCase().includes("localitate"));
+                
+                if(c.length > 2 && volIdx > -1 && cityIdx > -1) {
+                    let volStr = c[volIdx].replace(/["']/g,'');
+                    if(volStr.includes(',')) volStr = volStr.replace(',','');
+                    let vol = parseInt(volStr);
+                    let city = c[cityIdx];
+                    if(city && !isNaN(vol)) data.awb[norm(city)] = (data.awb[norm(city)] || 0) + vol;
+                }
+            });
+            document.getElementById('statusAWB').innerText = `✅ Volume OK`;
+        }
+
+        // NEW: citire robustă populație (Judet,Localitate,Populatie) și mapare pe chei normalizate
+        function processPop(csv) {
+            data.pop = {};
+            data.popJudet = {};
+
+            const lines = csv.split('\n').filter(x => x.trim().length);
+            if(!lines.length) return;
+
+            const header = splitCSV(lines[0]).map(x => x.replace(/['"]+/g,'').trim().toLowerCase());
+            const idxJ = header.findIndex(x => x.includes('judet'));
+            const idxL = header.findIndex(x => x.includes('localitate'));
+            const idxP = header.findIndex(x => x.includes('popul'));
+
+            lines.slice(1).forEach(l => {
+                const c = splitCSV(l);
+                if(c.length < 2) return;
+
+                const jud = idxJ > -1 ? c[idxJ] : "";
+                const loc = idxL > -1 ? c[idxL] : c[1];
+                const popStr = idxP > -1 ? c[idxP] : c[c.length - 1];
+
+                const pop = parseInt(String(popStr).replace(/\s/g,'').replace(/\./g,'').replace(/,/g,''));
+                if(!loc || isNaN(pop) || pop <= 0) return;
+
+                // chei multiple pentru matching
+                const keys = buildLocalityKeys(loc);
+                keys.forEach(k => { data.pop[k] = Math.max(data.pop[k] || 0, pop); });
+
+                // dacă rândul e total județ (observat în fișier: rânduri cu localitate = "ARAD" și judet gol) [file:4]
+                const locNorm = norm(loc);
+                if(jud && locNorm) data.popJudet[norm(jud)] = data.popJudet[norm(jud)] || null;
+            });
+
+            document.getElementById('statusPop').innerText = "✅ Populație OK (mapare localități)";
+        }
+
+        // --- FUNCȚII SUPORT ---
+        function getDist(lat1, lon1, lat2, lon2) {
+            const R = 6371e3;
+            const a = Math.sin((lat2-lat1)*Math.PI/360)**2 +
+                      Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*
+                      Math.sin((lon2-lon1)*Math.PI/360)**2;
+            return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+        }
+
+        function safeMedian(vals) {
+            if(!vals.length) return 0;
+            const a = vals.slice().sort((x,y)=>x-y);
+            const mid = Math.floor(a.length/2);
+            return (a.length % 2) ? a[mid] : (a[mid-1] + a[mid]) / 2;
+        }
+
+        function findPopulationForLocality(cityName) {
+            // încearcă mai multe chei: exact, fără prefixe, includes fallback
+            const keys = buildLocalityKeys(cityName);
+            for(const k of keys) {
+                if(data.pop[k]) return { pop: data.pop[k], matchKey: k, matchType: "exact/normalized" };
+            }
+            // fallback: dacă Nominatim dă ceva mai lung, căutăm localități care sunt substring
+            const cityKey = norm(cityName);
+            let bestPop = 0;
+            let bestKey = null;
+            for(const k in data.pop) {
+                if(cityKey && k && (cityKey.includes(k) || k.includes(cityKey))) {
+                    if(data.pop[k] > bestPop) { bestPop = data.pop[k]; bestKey = k; }
+                }
+            }
+            if(bestPop) return { pop: bestPop, matchKey: bestKey, matchType: "includes" };
+            return { pop: 0, matchKey: null, matchType: "none" };
+        }
+
+        function computeLocalityLockerCount(cityName) {
+            // număr lockere în aceeași localitate (în funcție de textul din Locker Oras)
+            const cityKey = norm(cityName);
+            if(!cityKey) return 0;
+
+            let count = 0;
+            data.lockers.forEach(l => {
+                const lk = l.cityKey || norm(l.city);
+                if(!lk) return;
+                // potrivire tolerantă (ex: "clujnapoca" vs "cluj-napoca")
+                if(lk === cityKey || lk.includes(cityKey) || cityKey.includes(lk)) count++;
+            });
+            return count;
+        }
+
+        function analyzeLocalData(lat, lng, cityName) {
+            let cityKey = norm(cityName);
+
+            // populație localitate
+            const popInfo = findPopulationForLocality(cityName);
+            const popLocality = popInfo.pop || 0;
+
+            // AWB localitate (mecanismul tău existent; păstrat)
+            let awb = 0;
+            for(let k in data.awb) if(cityKey.includes(k)) awb = Math.max(awb, data.awb[k]);
+
+            // lockere în localitate (din întreg dataset)
+            const localityLockerCount = computeLocalityLockerCount(cityName);
+
+            // indicatori demografici
+            const popPerLockerLocality = (popLocality > 0 && localityLockerCount > 0)
+              ? Math.round(popLocality / localityLockerCount)
+              : null;
+
+            const lockersPer10kLocality = (popLocality > 0)
+              ? Number(((localityLockerCount / popLocality) * 10000).toFixed(2))
+              : null;
+
+            // bucket-uri pe rază
+            const buckets = { r0_500: [], r500_1000: [], r0_1000: [] };
+            let anchors = [];
+
+            data.lockers.forEach(l => {
+                let d = getDist(lat, lng, l.lat, l.lng);
+                if(d <= 1000) {
+                    const item = {
+                        name: l.nume, dist: d,
+                        loadNov25: l.loadNov25, loadNov24: l.loadNov24,
+                        avgHist: l.avgHist, trend: l.trend,
+                        daysOff: l.daysOff, install: l.install,
+                        cap: l.cap, model: l.model, city: l.city,
+                        last12m: l.last12m || [],
+                        last12mCount: l.last12mCount || 0,
+                        lastMonth: l.lastMonth || null
+                    };
+
+                    buckets.r0_1000.push(item);
+                    if(d <= 500) buckets.r0_500.push(item);
+                    else buckets.r500_1000.push(item);
+
+                    let n = (l.nume || '').toLowerCase();
+                    ANCHORS.forEach(tag => { if(n.includes(tag) && !anchors.includes(tag)) anchors.push(tag); });
+                }
+            });
+
+            buckets.r0_500.sort((a,b) => a.dist - b.dist);
+            buckets.r500_1000.sort((a,b) => a.dist - b.dist);
+            buckets.r0_1000.sort((a,b) => a.dist - b.dist);
+
+            function pctAbove(arr, thr){
+                if(!arr.length) return 0;
+                const ok = arr.filter(x => (x.loadNov25 || 0) >= thr).length;
+                return Math.round((ok / arr.length) * 100);
+            }
+            function avg(arr, key){
+                const vals = arr.map(x => Number(x[key] || 0)).filter(v => !isNaN(v) && v > 0);
+                return vals.length ? vals.reduce((a,b)=>a+b,0) / vals.length : 0;
+            }
+            function maxv(arr, key){
+                const vals = arr.map(x => Number(x[key] || 0)).filter(v => !isNaN(v));
+                return vals.length ? Math.max(...vals) : 0;
+            }
+            function yoyStats(arr){
+                const diffs = arr
+                    .map(x => ({d: (Number(x.loadNov25||0) - Number(x.loadNov24||0)), ok: (x.loadNov25>0 && x.loadNov24>0)}))
+                    .filter(x => x.ok)
+                    .map(x => x.d);
+                return { n: diffs.length, avgDiff: diffs.length ? diffs.reduce((a,b)=>a+b,0)/diffs.length : 0, medianDiff: safeMedian(diffs) };
+            }
+            function installAges(arr){
+                const now = new Date();
+                let lt12 = 0, lt24 = 0, ge24 = 0, unk = 0;
+                for (const x of arr){
+                    if (!x.install) { unk++; continue; }
+                    const dt = new Date(x.install);
+                    if (isNaN(dt.getTime())) { unk++; continue; }
+                    const months = (now.getFullYear()-dt.getFullYear())*12 + (now.getMonth()-dt.getMonth());
+                    if (months < 12) lt12++;
+                    else if (months < 24) lt24++;
+                    else ge24++;
+                }
+                return { lt12, lt24, ge24, unk };
+            }
+            function last12Agg(arr){
+                const vals = [];
+                let lockersWithAny = 0;
+                let sampleMonth = null;
+
+                arr.forEach(x => {
+                    if(x.last12m && x.last12m.length) {
+                        lockersWithAny++;
+                        if(!sampleMonth && x.lastMonth) sampleMonth = x.lastMonth;
+                        x.last12m.forEach(p => {
+                            const v = Number(p.v);
+                            if(!isNaN(v) && v > 0) vals.push(v);
+                        });
+                    }
+                });
+
+                return {
+                    lockersWithAny,
+                    points: vals.length,
+                    avg: vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : 0,
+                    median: safeMedian(vals),
+                    max: vals.length ? Math.max(...vals) : 0,
+                    sampleLastMonth: sampleMonth
+                };
+            }
+
+            const aggFor = (arr) => ({
+                count: arr.length,
+                avgLoadNov25: avg(arr, 'loadNov25'),
+                maxLoadNov25: maxv(arr, 'loadNov25'),
+                pct75: pctAbove(arr, 75),
+                pct85: pctAbove(arr, 85),
+                pct95: pctAbove(arr, 95),
+                avgDaysOff: avg(arr, 'daysOff'),
+                installAges: installAges(arr),
+                yoyNov: yoyStats(arr),
+                last12: last12Agg(arr)
+            });
+
+            const agg_0_500m = aggFor(buckets.r0_500);
+            const agg_500_1000m = aggFor(buckets.r500_1000);
+            const agg_0_1000m = aggFor(buckets.r0_1000);
+
+            const count_500_1000 = Math.max(0, agg_0_1000m.count - agg_0_500m.count);
+            const coverageLast12Pct = agg_0_1000m.count
+              ? Math.round((agg_0_1000m.last12.lockersWithAny / agg_0_1000m.count) * 100)
+              : 0;
+
+            return {
+                city: cityName,
+                awb,
+                anchors,
+
+                // populație + matching info
+                popLocality,
+                popMatchType: popInfo.matchType,
+                popMatchKey: popInfo.matchKey,
+
+                // persoane / lockere în localitate
+                localityLockerCount,
+                popPerLockerLocality,
+                lockersPer10kLocality,
+
+                // liste raze
+                lockers_0_500m: buckets.r0_500.slice(0, 50),
+                lockers_500_1000m: buckets.r500_1000.slice(0, 50),
+
+                // agregate raze
+                agg_0_500m,
+                agg_500_1000m,
+                agg_0_1000m,
+
+                // calitate date
+                count_500_1000,
+                coverageLast12Pct
+            };
+        }
+
+        // --- INTERFAȚĂ & VOICE ---
+        const synth = window.speechSynthesis;
+        let recognition = null;
+        let isListening = false;
+
+        function speak(text) {
+            if (synth.speaking) synth.cancel();
+            const utter = new SpeechSynthesisUtterance(text);
+            utter.lang = 'ro-RO';
+            synth.speak(utter);
+            document.getElementById('aiFeedback').innerText = text;
+        }
+
+        function toggleVoice() {
+            if (!('webkitSpeechRecognition' in window)) { alert("Necesită Chrome/Edge."); return; }
+            if (isListening) { recognition.stop(); return; }
+            
+            recognition = new webkitSpeechRecognition();
+            recognition.lang = 'ro-RO';
+            recognition.onstart = () => { isListening=true; document.getElementById('micBtn').classList.add('active'); };
+            recognition.onend = () => { isListening=false; document.getElementById('micBtn').classList.remove('active'); };
+            recognition.onresult = (e) => {
+                const q = e.results[0][0].transcript;
+                document.getElementById('searchInput').value = q;
+                handleInput({key: 'Enter', target: {value: q}}, true);
+            };
+            recognition.start();
+        }
+
+        function handleInput(e, fromVoice = false) {
+            if(e.key === 'Enter' || fromVoice) {
+                const q = document.getElementById('searchInput').value;
+                if(q.toLowerCase().includes("scan")) {
+                    let city = q.replace(/scanează|orașul/gi, "").trim();
+                    runAutoScanWrapper(city);
+                } else {
+                    askPerplexity(q);
+                }
+            }
+        }
+
+        async function runAutoScanWrapper(city) {
+            if(city.length < 3) return;
+            speak(`Analizez ${city}...`);
+            document.getElementById('loadBar').style.display = 'block';
+            
+            try {
+                const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(city)}`);
+                const d = await r.json();
+                if(!d.length) { speak("Locație necunoscută."); return; }
+                
+                const b = d[0].boundingbox;
+                map.fitBounds([[b[0], b[2]], [b[1], b[3]]]);
+                const centerLat = (parseFloat(b[0]) + parseFloat(b[1])) / 2;
+                const centerLng = (parseFloat(b[2]) + parseFloat(b[3])) / 2;
+                
+                const context = analyzeLocalData(centerLat, centerLng, city);
+                askPerplexity(`Raport de oportunitate pentru ${city}?`, context);
+                document.getElementById('loadBar').style.display = 'none';
+            } catch(e) { console.error(e); }
+        }
+
+        function toggleAddMode() {
+            addMode = !addMode;
+            const btn = document.getElementById('addModeBtn');
+            if(addMode) { btn.innerText = "🛑 STOP"; btn.style.borderColor = "#ff3333"; }
+            else { btn.innerText = "🎯 ANALIZĂ PUNCTUALĂ"; btn.style.borderColor = "#00ff88"; }
+        }
+
+        map.on('click', async e => {
+            if(!addMode) return;
+            let city = "Locație";
+            try {
+                const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${e.latlng.lat}&lon=${e.latlng.lng}`);
+                const d = await r.json();
+                city = d.address.city || d.address.town || d.address.village || city;
+            } catch(er){}
+            
+            const context = analyzeLocalData(e.latlng.lat, e.latlng.lng, city);
+            L.circleMarker(e.latlng, { radius: 10, color: '#fff', fillColor: '#ff00cc', fillOpacity: 1 }).addTo(map);
+            askPerplexity(`Analizează potențialul unui locker aici: ${e.latlng.lat}, ${e.latlng.lng}`, context);
+        });
+
+        function resetAll() {
+            Object.values(layers).forEach(l => l.clearLayers());
+            document.getElementById('aiResponse').style.display = 'none';
+            speak("Resetat.");
+        }
+    </script>
+</body>
+</html>
