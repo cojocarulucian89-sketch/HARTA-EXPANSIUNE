@@ -257,19 +257,26 @@ let lockerMarkers = [];
 /* ===========================
    3) UTILS
 =========================== */
-function splitCSV(str){
+function splitCSV(line){
+  const s = String(line || '');
+  const comma = (s.match(/,/g) || []).length;
+  const semi  = (s.match(/;/g) || []).length;
+  const sep = semi > comma ? ';' : ',';
+
   const res = [];
   let curr = '';
   let inQt = false;
-  for(let i=0;i<str.length;i++){
-    const c = str[i];
+
+  for(let i=0;i<s.length;i++){
+    const c = s[i];
     if(c === '"'){ inQt = !inQt; continue; }
-    if(c === ',' && !inQt){ res.push(curr.trim()); curr = ''; continue; }
+    if(c === sep && !inQt){ res.push(curr.trim()); curr = ''; continue; }
     curr += c;
   }
   res.push(curr.trim());
   return res;
 }
+
 
 function norm(s){
   return s ? String(s).toLowerCase()
