@@ -2,6 +2,7 @@
 <html lang="ro">
 <head>
   <script src="./config.js"></script>
+
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>QUEST DETECTIVE - EXPANSIUNE</title>
@@ -50,10 +51,6 @@
       padding:10px;border-radius:10px;border:1px solid var(--border);
     }
     input[type="file"]{width:100%;font-size:11px;color:#ccc;border:none;background:transparent;}
-    .api-input{
-      width:100%;padding:8px;background:#000;border:1px solid var(--accent);
-      color:var(--accent);font-family:monospace;border-radius:6px;box-sizing:border-box;font-size:11px;
-    }
     .quest-search{
       width:100%;padding:10px;background:#111;border:1px solid #444;color:#fff;border-radius:8px;box-sizing:border-box;
     }
@@ -111,7 +108,6 @@
     ::-webkit-scrollbar-track{background:#111;}
     ::-webkit-scrollbar-thumb{background:#333;border-radius:3px;}
 
-    /* Layer control - să arate ok pe dark */
     .leaflet-control-layers{
       background:rgba(18,22,33,.92);
       color:#fff;
@@ -134,7 +130,10 @@
 
     <div class="quest-input-group" style="border-color:var(--accent);">
       <span class="quest-label" style="color:var(--accent);">PERPLEXITY API KEY</span>
-      <input type="password" id="apiKey" class="api-input" placeholder="pplx-xxxxxxxxxxxxxxxxxxxx"/>
+      <div style="font-size:11px;color:#9aa0a6;line-height:1.35;">
+        Cheia este citită automat din <code>config.js</code>.
+      </div>
+      <div id="keyStatus" style="font-size:10px;color:#555;margin-top:6px;">Verificare cheie...</div>
     </div>
 
     <div class="quest-input-group">
@@ -184,14 +183,24 @@
 
 <script>
 /* ===========================
-   1) HARTĂ + BASEMAPS (Light/Satelit)
+   0) CONFIG CHECK
+=========================== */
+(function(){
+  const el = document.getElementById('keyStatus');
+  const k = (window.PPLX_API_KEY || '').trim();
+  if(!el) return;
+  if(k && k.startsWith('pplx-')) el.innerText = 'Cheie detectată (config.js).';
+  else el.innerText = 'Cheie lipsă sau invalidă în config.js.';
+})();
+
+/* ===========================
+   1) HARTĂ + BASEMAPS
 =========================== */
 const baseLight = L.tileLayer(
   'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
   { attribution:'CARTO' }
 );
 
-// ESRI World Imagery (satelit)
 const baseSat = L.tileLayer(
   'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
   { attribution:'Esri' }
@@ -203,12 +212,7 @@ L.control.zoom({ position:'topright' }).addTo(map);
 /* ===========================
    2) DATA + LAYERS
 =========================== */
-let data = {
-  lockers: [],
-  awbJL: {}, awbJLM: {},
-  popJL: {}
-};
-
+let data = { lockers: [], awbJL: {}, awbJLM: {}, popJL: {} };
 let detectedMonths = [];
 let addMode = false;
 
@@ -222,7 +226,6 @@ const statusColors = {
   'Standard':'#27ae60'
 };
 
-/* Layere: clasificare + simulare + impact */
 const layers = {
   'Critic Urgent': L.layerGroup(),
   'Critic Standard': L.layerGroup(),
@@ -233,16 +236,8 @@ const layers = {
   'Impact 500m': L.layerGroup()
 };
 
-// Le adăugăm inițial pe hartă
-layers['Critic Urgent'].addTo(map);
-layers['Critic Standard'].addTo(map);
-layers['Atenție'].addTo(map);
-layers['Standard'].addTo(map);
-layers['Propuneri'].addTo(map);
-layers['Impact 200m'].addTo(map);
-layers['Impact 500m'].addTo(map);
+Object.values(layers).forEach(g => g.addTo(map));
 
-/* Layer control (basemap + overlays) */
 L.control.layers(
   { 'Light': baseLight, 'Satelit': baseSat },
   {
@@ -257,8 +252,7 @@ L.control.layers(
   { collapsed:true }
 ).addTo(map);
 
-/* Search index pentru lockere */
-let lockerMarkers = []; // [{ marker, locker }]
+let lockerMarkers = [];
 
 /* ===========================
    3) UTILS
@@ -335,7 +329,6 @@ function getDist(lat1, lon1, lat2, lon2){
 }
 
 function ymdToDate(ymd){
-  // acceptă '2021-06-23' sau cu timp
   if(!ymd) return null;
   const s = String(ymd).trim().slice(0,10);
   const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -346,8 +339,7 @@ function ymdToDate(ymd){
 function monthsAgo(d){
   if(!d) return Infinity;
   const now = new Date();
-  const months = (now.getFullYear()-d.getFullYear())*12 + (now.getMonth()-d.getMonth());
-  return months;
+  return (now.getFullYear()-d.getFullYear())*12 + (now.getMonth()-d.getMonth());
 }
 
 /* ===========================
@@ -376,6 +368,8 @@ function handleFileUpload(input, type){
 =========================== */
 function processLockers(csv){
   Object.values(layers).forEach(g => g.clearLayers());
+  Object.values(layers).forEach(g => g.addTo(map));
+
   lockerMarkers = [];
   data.lockers = [];
 
@@ -424,7 +418,6 @@ function processLockers(csv){
     const lng = parseFloat(getVal(row, idx.lng));
     if(isNaN(lat) || isNaN(lng)) return;
 
-    // Istoric + luni valide
     let historyValues = [];
     let monthsWithData = 0;
 
@@ -436,12 +429,8 @@ function processLockers(csv){
       }
     });
 
-    let avgHist = 0;
-    if(historyValues.length){
-      avgHist = historyValues.reduce((a,b)=>a+b,0) / historyValues.length;
-    }
+    let avgHist = historyValues.length ? historyValues.reduce((a,b)=>a+b,0) / historyValues.length : 0;
 
-    // Load nov
     let loadNov25 = 0, loadNov24 = 0;
     if(idxNov25 > -1){
       const p = parseLoadPercent(getVal(row, idxNov25));
@@ -500,17 +489,13 @@ function processLockers(csv){
 
     const popupContent = `
       <div class="popup-header">${locker.nume || '-'}</div>
-
       <div class="popup-row"><span class="popup-label">📍 Locație:</span><span class="popup-value">${locker.city || '-'}</span></div>
       <div class="popup-row"><span class="popup-label">📬 Adresă:</span><span class="popup-value">${locker.addr || '-'}</span></div>
-
       <div class="popup-row"><span class="popup-label">📊 Încărcare Nov 2025:</span><span class="popup-value">${(locker.loadNov25 || 0).toFixed(1)}%</span></div>
       <div class="popup-row"><span class="popup-label">⏮️ Nov 2024:</span><span class="popup-value">${(locker.loadNov24 || 0).toFixed(1)}%</span></div>
-
       <div class="popup-row"><span class="popup-label">📈 Trend:</span><span class="popup-value">${trendIcon} ${locker.trend || 'Stabil'}</span></div>
       <div class="popup-row"><span class="popup-label">⚖️ Medie Istorică:</span><span class="popup-value">${(locker.avgHist || 0).toFixed(1)}%</span></div>
       <div class="popup-row"><span class="popup-label">🗓️ Luni ultim an:</span><span class="popup-value">${monthsText}</span></div>
-
       <div class="popup-row"><span class="popup-label">📦 Capacitate:</span><span class="popup-value">${locker.cap || '-'}</span></div>
       <div class="popup-row"><span class="popup-label">⏱️ Inactivare:</span><span class="popup-value">${locker.daysOff || 0} zile</span></div>
       <div class="popup-row"><span class="popup-label">📅 Instalare:</span><span class="popup-value">${locker.install || '-'}</span></div>
@@ -530,7 +515,7 @@ function processLockers(csv){
 }
 
 /* ===========================
-   6) AWB CSV (județ + localitate)
+   6) AWB CSV
 =========================== */
 function processAWB(csv){
   data.awbJL = {};
@@ -586,7 +571,7 @@ function processAWB(csv){
 }
 
 /* ===========================
-   7) POPULAȚIE CSV (județ + localitate)
+   7) POP CSV
 =========================== */
 function processPop(csv){
   data.popJL = {};
@@ -656,7 +641,7 @@ function getPopFor(judetName, localitateName){
 }
 
 /* ===========================
-   9) ZONE METRICS (din lockere)
+   9) ZONE METRICS
 =========================== */
 function zoneMetrics(lat, lng){
   const within200 = [];
@@ -673,18 +658,14 @@ function zoneMetrics(lat, lng){
   function summarize(list){
     if(!list.length) return { count:0, avgLoad:0, avgTrendDelta:0, installs12:0, top:[] };
 
-    // avg load (Nov25)
     const loads = list.map(x=>x.locker.loadNov25).filter(v=>typeof v==='number' && v>0);
     const avgLoad = loads.length ? loads.reduce((a,b)=>a+b,0)/loads.length : 0;
 
-    // trend delta (Nov25 - Nov24)
     const deltas = list.map(x => (x.locker.loadNov25||0) - (x.locker.loadNov24||0));
     const avgTrendDelta = deltas.length ? deltas.reduce((a,b)=>a+b,0)/deltas.length : 0;
 
-    // instalări în ultimele 12 luni
     const installs12 = list.filter(x => (x.locker.installMonthsAgo||Infinity) <= 12).length;
 
-    // top 8 după load
     const top = list
       .slice()
       .sort((a,b)=>(b.locker.loadNov25||0)-(a.locker.loadNov25||0))
@@ -700,63 +681,41 @@ function zoneMetrics(lat, lng){
     return { count:list.length, avgLoad:+avgLoad.toFixed(1), avgTrendDelta:+avgTrendDelta.toFixed(1), installs12, top };
   }
 
-  return {
-    r200: summarize(within200),
-    r500: summarize(within500),
-    r1500: summarize(within1500)
-  };
+  return { r200: summarize(within200), r500: summarize(within500), r1500: summarize(within1500) };
 }
 
 function analyzeLocalData(lat, lng, cityName, judetName){
   const pop = judetName ? getPopFor(judetName, cityName) : 0;
   const awb = judetName ? getAwbFor(judetName, cityName) : 0;
-
   const metrics = zoneMetrics(lat, lng);
 
   const anchors = [];
-  // Ancore din top 1500 (proxy)
   (metrics.r1500.top || []).forEach(x=>{
     const n = (x.name||'').toLowerCase();
     ANCHORS.forEach(tag => { if(n.includes(tag) && !anchors.includes(tag)) anchors.push(tag); });
   });
 
-  return {
-    pop, awb,
-    city: cityName, judet: judetName || '',
-    metrics,
-    anchors
-  };
+  return { pop, awb, city: cityName, judet: judetName || '', metrics, anchors };
 }
 
 /* ===========================
-   10) IMPACT CIRCLES (200/500)
+   10) IMPACT CIRCLES
 =========================== */
 function drawImpactCircles(latlng){
   layers['Impact 200m'].clearLayers();
   layers['Impact 500m'].clearLayers();
 
-  const c200 = L.circle(latlng, {
-    radius: 200,
-    color: '#00ff88',
-    weight: 2,
-    fillColor: '#00ff88',
-    fillOpacity: 0.08
-  });
+  layers['Impact 200m'].addLayer(L.circle(latlng, {
+    radius: 200, color: '#00ff88', weight: 2, fillColor: '#00ff88', fillOpacity: 0.08
+  }));
 
-  const c500 = L.circle(latlng, {
-    radius: 500,
-    color: '#ff00cc',
-    weight: 2,
-    fillColor: '#ff00cc',
-    fillOpacity: 0.06
-  });
-
-  layers['Impact 200m'].addLayer(c200);
-  layers['Impact 500m'].addLayer(c500);
+  layers['Impact 500m'].addLayer(L.circle(latlng, {
+    radius: 500, color: '#ff00cc', weight: 2, fillColor: '#ff00cc', fillOpacity: 0.06
+  }));
 }
 
 /* ===========================
-   11) CĂUTARE LOCKER / ADRESĂ
+   11) SEARCH
 =========================== */
 function searchLockers(query){
   const q = norm(query);
@@ -803,19 +762,19 @@ function searchLockerUI(e){
 }
 
 /* ===========================
-   12) PERPLEXITY API - PROMPT “CAPACITATE”
+   12) PERPLEXITY
 =========================== */
 async function askPerplexity(question, contextData=null){
- const apiKey = (window.PPLX_API_KEY || '').trim();
-if(!apiKey || apiKey === "PUNE_CHEIA_TA_AICI"){
-  alert('Lipsește cheia Perplexity. Seteaz-o în config.js (window.PPLX_API_KEY).');
-  return;
-}
+  const apiKey = (window.PPLX_API_KEY || '').trim();
+  if(!apiKey || !apiKey.startsWith('pplx-')){
+    alert('Cheie Perplexity lipsă/invalidă. Verifică config.js (window.PPLX_API_KEY).');
+    return;
+  }
+
   const responseBox = document.getElementById('aiResponse');
   responseBox.style.display = 'block';
   responseBox.innerHTML = '<i>Perplexity analizează datele...</i>';
 
-  // Prompt: zonă aglomerată => nevoie capacitate, trend ascendent => instalare nouă recomandată
   let systemPrompt =
 `Ești un expert logistic senior pentru rețeaua easybox.
 Obiectiv: decizie operațională pentru CAPACITATE (upsize / locker nou / relocare) bazată strict pe datele furnizate.
@@ -856,20 +815,20 @@ TOP lockere (1500m, după încărcare): ${JSON.stringify(m.r1500?.top||[])}`
     const response = await fetch('https://api.perplexity.ai/chat/completions', {
       method:'POST',
       headers:{ 'Authorization':'Bearer ' + apiKey, 'Content-Type':'application/json' },
-      body: JSON.stringify({ model:'sonar-pro', messages })
+      body: JSON.stringify({ model: (window.PPLX_MODEL || 'sonar-pro'), messages })
     });
 
     const json = await response.json();
-    if(json.error) throw new Error(json.error.message);
+    if(json.error) throw new Error(json.error.message || 'Eroare API');
 
-    const rawText = json.choices[0].message.content;
+    const rawText = json?.choices?.[0]?.message?.content || '(Fără răspuns)';
     responseBox.innerHTML = marked.parse(rawText);
 
     const cleanText = rawText.replace(/\n/g,' ').split('.').slice(0,2).join('. ');
     speak(cleanText);
   } catch(e){
     console.error(e);
-    responseBox.innerText = 'Eroare API Perplexity: ' + e.message;
+    responseBox.innerText = 'Eroare API Perplexity: ' + (e.message || String(e));
     speak('A apărut o eroare la conectarea cu Perplexity.');
   }
 }
@@ -923,7 +882,7 @@ function handleInput(e, fromVoice=false){
 }
 
 /* ===========================
-   14) AUTO-SCAN / SIMULARE + CERCURI IMPACT
+   14) AUTO-SCAN
 =========================== */
 async function startAutoScan(cityFromParam=null){
   let city = cityFromParam;
@@ -956,15 +915,12 @@ async function startAutoScan(cityFromParam=null){
     const centerLng = (parseFloat(b[2]) + parseFloat(b[3])) / 2;
     const center = L.latLng(centerLat, centerLng);
 
-    // impact circles la simulare
     drawImpactCircles(center);
 
-    // marker simulare
     layers['Propuneri'].addLayer(
       L.circleMarker(center, { radius: 10, color:'#fff', fillColor:'#ff00cc', fillOpacity:1 })
     );
 
-    // Reverse pentru județ + localitate “reală”
     const rr = await fetch('https://nominatim.openstreetmap.org/reverse?format=json&addressdetails=1&lat=' + centerLat + '&lon=' + centerLng);
     const rd = await rr.json();
     const addr = rd.address || {};
@@ -985,7 +941,7 @@ async function startAutoScan(cityFromParam=null){
 }
 
 /* ===========================
-   15) ANALIZĂ PUNCTUALĂ (CLICK) + CERCURI
+   15) ANALIZĂ PUNCTUALĂ
 =========================== */
 function toggleAddMode(){
   addMode = !addMode;
