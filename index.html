@@ -1,63 +1,38 @@
 <!DOCTYPE html>
 <html lang="ro">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>QUEST DETECTIVE - EXPANSIUNE</title>
 
-  <script src="./config.js"></script>
-
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet"/>
 
   <style>
     :root{
-      --bg:#222;
-      --panel:rgba(18,22,33,.98);
-      --panel2:#1a1e29;
-      --border:#333;
-      --text:#e0e0e0;
-      --muted:#888;
-      --accent:#00ff88;
-      --danger:#ff3333;
-      --pink:#ff00cc;
+      --bg:#222; --panel:rgba(18,22,33,.98); --panel2:#1a1e29;
+      --border:#333; --text:#e0e0e0; --muted:#888;
+      --accent:#00ff88; --danger:#ff3333; --pink:#ff00cc;
     }
     body{font-family:Inter,sans-serif;margin:0;padding:0;background:var(--bg);color:var(--text);overflow:hidden;font-size:14px;}
     #map{height:100vh;width:100%;position:relative;z-index:1;}
-
     .quest-panel{
-      position:absolute;top:15px;left:15px;
-      background:var(--panel);
-      border:1px solid var(--border);
-      width:390px;padding:18px;border-radius:12px;
-      z-index:1000;box-shadow:0 0 30px rgba(0,0,0,.6);
+      position:absolute;top:15px;left:15px;background:var(--panel);border:1px solid var(--border);
+      width:390px;padding:18px;border-radius:12px;z-index:1000;box-shadow:0 0 30px rgba(0,0,0,.6);
       max-height:90vh;overflow-y:auto;
     }
     .quest-title{
-      font-size:18px;font-weight:800;color:var(--accent);
-      margin-bottom:12px;text-transform:uppercase;
-      border-bottom:2px solid var(--accent);
-      padding-bottom:10px;display:flex;justify-content:space-between;align-items:center;
+      font-size:18px;font-weight:800;color:var(--accent);margin-bottom:12px;text-transform:uppercase;
+      border-bottom:2px solid var(--accent);padding-bottom:10px;display:flex;justify-content:space-between;align-items:center;
       letter-spacing:.3px;
     }
-    .quest-label{
-      font-size:11px;font-weight:700;color:var(--muted);
-      text-transform:uppercase;margin-bottom:6px;display:block;
-    }
-    .quest-input-group{
-      margin-bottom:12px;background:var(--panel2);
-      padding:10px;border-radius:10px;border:1px solid var(--border);
-    }
+    .quest-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:6px;display:block;}
+    .quest-input-group{margin-bottom:12px;background:var(--panel2);padding:10px;border-radius:10px;border:1px solid var(--border);}
     input[type="file"]{width:100%;font-size:11px;color:#ccc;border:none;background:transparent;}
-    .quest-search{
-      width:100%;padding:10px;background:#111;border:1px solid #444;color:#fff;border-radius:8px;box-sizing:border-box;
-    }
+    .quest-search{width:100%;padding:10px;background:#111;border:1px solid #444;color:#fff;border-radius:8px;box-sizing:border-box;}
     .quest-search:focus{outline:none;border-color:var(--accent);}
     .quest-btn{
-      width:100%;padding:10px;margin-top:6px;background:#111;border:1px solid var(--accent);
-      color:var(--accent);font-weight:800;cursor:pointer;text-transform:uppercase;transition:.2s;border-radius:10px;
+      width:100%;padding:10px;margin-top:6px;background:#111;border:1px solid var(--accent);color:var(--accent);
+      font-weight:800;cursor:pointer;text-transform:uppercase;transition:.2s;border-radius:10px;
     }
     .quest-btn:hover{background:var(--accent);color:#000;}
     .btn-scan{border-color:var(--pink);color:var(--pink);}
@@ -68,49 +43,34 @@
     }
     .mic-btn.active{border-color:var(--accent);color:var(--accent);box-shadow:0 0 10px rgba(0,255,136,.4);animation:pulse 1.5s infinite;}
     @keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.08)}100%{transform:scale(1)}}
-
     #aiFeedback{font-size:11px;color:#aaa;margin-top:6px;min-height:15px;text-align:center;}
     .ai-response-box{
-      background:rgba(0,255,136,.05);
-      border:1px solid var(--accent);
-      padding:10px;margin-top:10px;border-radius:10px;
+      background:rgba(0,255,136,.05);border:1px solid var(--accent);padding:10px;margin-top:10px;border-radius:10px;
       font-size:12px;line-height:1.45;color:#fff;display:none;
     }
-
     .stats-container{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;}
     .stat-box{background:#111;border:1px solid var(--border);border-radius:10px;padding:8px;text-align:center;}
     .stat-val{font-size:16px;font-weight:800;color:#fff;}
     .stat-name{font-size:9px;color:#666;text-transform:uppercase;}
-
     .loading-bar{height:3px;background:#333;width:100%;display:none;margin-top:6px;border-radius:3px;overflow:hidden;}
     .loading-fill{height:100%;background:var(--accent);width:0;transition:width .3s;}
 
     .leaflet-popup-content-wrapper{
-      background:rgba(18,22,33,.98);color:#eee;border:1px solid #444;border-radius:10px;
-      box-shadow:0 10px 30px rgba(0,0,0,.8);
+      background:rgba(18,22,33,.98);color:#eee;border:1px solid #444;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.8);
     }
     .leaflet-popup-content{width:320px !important;margin:14px;}
     .leaflet-popup-tip{background:#1a1e29;}
-    .popup-header{
-      font-weight:900;color:var(--accent);font-size:14px;text-align:center;
-      margin-bottom:10px;border-bottom:1px solid #444;padding-bottom:8px;
-    }
-    .popup-row{
-      display:flex;justify-content:space-between;gap:10px;align-items:flex-start;
-      font-size:12px;margin-bottom:6px;border-bottom:1px dashed #333;padding-bottom:5px;
-    }
+    .popup-header{font-weight:900;color:var(--accent);font-size:14px;text-align:center;margin-bottom:10px;border-bottom:1px solid #444;padding-bottom:8px;}
+    .popup-row{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;font-size:12px;margin-bottom:6px;border-bottom:1px dashed #333;padding-bottom:5px;}
     .popup-label{color:#9aa0a6;font-weight:700;min-width:150px;}
     .popup-value{font-weight:700;color:#fff;text-align:right;flex:1;word-break:break-word;}
+
     ::-webkit-scrollbar{width:6px;}
     ::-webkit-scrollbar-track{background:#111;}
     ::-webkit-scrollbar-thumb{background:#333;border-radius:3px;}
 
     .leaflet-control-layers{
-      background:rgba(18,22,33,.92);
-      color:#fff;
-      border:1px solid #333;
-      border-radius:10px;
-      box-shadow:0 10px 30px rgba(0,0,0,.6);
+      background:rgba(18,22,33,.92);color:#fff;border:1px solid #333;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.6);
     }
     .leaflet-control-layers label{color:#ddd;}
   </style>
@@ -121,70 +81,75 @@
 
   <div class="quest-panel">
     <div class="quest-title">
-      QUEST DETECTIVE
-      <button class="mic-btn" id="micBtn" onclick="toggleVoice()" title="Microfon">🎙</button>
+      <span>QUEST DETECTIVE 🎙</span>
+      <button id="micBtn" class="mic-btn" onclick="toggleVoice()">🎤</button>
     </div>
 
-    <div class="quest-input-group" style="border-color:var(--accent);">
-      <span class="quest-label" style="color:var(--accent);">PERPLEXITY API KEY</span>
-      <div style="font-size:11px;color:#9aa0a6;line-height:1.35;">Cheia este citită automat din <code>config.js</code>.</div>
-      <div id="keyStatus" style="font-size:10px;color:#555;margin-top:6px;">Verificare cheie...</div>
+    <div class="quest-input-group">
+      <span class="quest-label">PERPLEXITY API KEY</span>
+      <div style="font-size:12px;color:#aaa;margin-bottom:6px;">Cheia este citită automat din <code>config.js</code>.</div>
+      <div id="keyStatus" style="font-size:12px;color:#ccc;">Verificare cheie...</div>
     </div>
 
     <div class="quest-input-group">
       <span class="quest-label">1. LOCKERE (CSV)</span>
-      <input type="file" name="lockersFile" onchange="handleFileUpload(this,'lockers')"/>
-      <div id="statusLockers" style="font-size:10px;color:#555;margin-top:6px;">Așteptare fișier...</div>
+      <input type="file" name="lockersFile" onchange="handleFileUpload(this,'lockers')">
+      <div id="statusLockers" style="font-size:12px;color:#aaa;margin-top:6px;">Așteptare fișier...</div>
     </div>
 
     <div class="quest-input-group">
       <span class="quest-label">2. VOLUME AWB (CSV)</span>
-      <input type="file" name="awbFile" onchange="handleFileUpload(this,'awb')"/>
-      <div id="statusAWB" style="font-size:10px;color:#555;margin-top:6px;">Așteptare fișier...</div>
+      <input type="file" name="awbFile" onchange="handleFileUpload(this,'awb')">
+      <div id="statusAWB" style="font-size:12px;color:#aaa;margin-top:6px;">Așteptare fișier...</div>
     </div>
 
     <div class="quest-input-group">
       <span class="quest-label">3. POPULAȚIE (CSV)</span>
-      <input type="file" name="popFile" onchange="handleFileUpload(this,'pop')"/>
-      <div id="statusPop" style="font-size:10px;color:#555;margin-top:6px;">Așteptare fișier...</div>
+      <input type="file" name="popFile" onchange="handleFileUpload(this,'pop')">
+      <div id="statusPop" style="font-size:12px;color:#aaa;margin-top:6px;">Așteptare fișier...</div>
     </div>
 
     <div class="quest-input-group">
       <span class="quest-label">CĂUTARE LOCKER / ADRESĂ</span>
-      <input type="text" id="lockerSearch" name="lockerSearch" class="quest-search" placeholder="Ex: Jolie Ville / Muncii 23 / nume locker" onkeyup="searchLockerUI(event)"/>
-      <div id="lockerSearchStatus" style="font-size:10px;color:#555;margin-top:6px;"></div>
+      <input type="text" id="lockerSearch" class="quest-search" placeholder="Ex: Jolie Ville / Muncii 23 / nume locker" onkeyup="searchLockerUI(event)">
+      <div id="lockerSearchStatus" style="font-size:11px;color:#888;margin-top:6px;"></div>
     </div>
 
     <div class="quest-input-group">
       <span class="quest-label">ASISTENT INTELIGENT</span>
-      <input type="text" id="searchInput" name="searchInput" class="quest-search" placeholder="Ex: Analizează Baicului..." onkeyup="handleInput(event)"/>
+      <input type="text" id="searchInput" class="quest-search" placeholder="Ex: Analizează Baicului..." onkeyup="handleInput(event)">
       <div id="aiFeedback">Sistem gata.</div>
-      <div id="aiResponse" class="ai-response-box"></div>
+
+      <div class="loading-bar" id="loadBar"><div class="loading-fill" id="loadFill"></div></div>
+
+      <button class="quest-btn btn-scan" onclick="startAutoScan()">AUTO-SCAN ZONĂ</button>
+      <button class="quest-btn" id="addModeBtn" onclick="toggleAddMode()">ANALIZĂ PUNCTUALĂ</button>
+      <button class="quest-btn" onclick="resetAll()" style="border-color:#444;color:#aaa;">RESET</button>
+
+      <!-- Export raport -->
+      <button onclick="exportLastReport()" id="exportBtn" class="quest-btn" style="display:none;border-color:var(--accent);color:var(--accent);">
+        EXPORT RAPORT (TXT)
+      </button>
+
+      <div class="stats-container">
+        <div class="stat-box"><div class="stat-val" id="totalVal">0</div><div class="stat-name">Lockere</div></div>
+        <div class="stat-box"><div class="stat-val" id="criticVal">0</div><div class="stat-name">Critic U</div></div>
+        <div class="stat-box"><div class="stat-val" id="warnVal">0</div><div class="stat-name">Atenție</div></div>
+        <div class="stat-box"><div class="stat-val" id="okVal">0</div><div class="stat-name">Standard</div></div>
+      </div>
+
+      <div class="ai-response-box" id="aiResponse"></div>
     </div>
-
-    <button onclick="startAutoScan()" class="quest-btn btn-scan">AUTO-SCAN ZONĂ</button>
-    <button onclick="toggleAddMode()" id="addModeBtn" class="quest-btn">ANALIZĂ PUNCTUALĂ</button>
-    <button onclick="resetAll()" class="quest-btn" style="border-color:var(--danger);color:var(--danger);">RESET</button>
-
-    <!-- (NOU) Export raport -->
-    <button onclick="exportLastReport()" id="exportBtn" class="quest-btn" style="display:none;border-color:var(--accent);color:var(--accent);">
-      EXPORT RAPORT (TXT)
-    </button>
-
-    <div class="stats-container">
-      <div class="stat-box"><div class="stat-val" id="totalVal">0</div><div class="stat-name">Lockere</div></div>
-      <div class="stat-box"><div class="stat-val" style="color:#ff0033;" id="criticVal">0</div><div class="stat-name">Critic U</div></div>
-      <div class="stat-box"><div class="stat-val" style="color:#ffae00;" id="warnVal">0</div><div class="stat-name">Atenție</div></div>
-      <div class="stat-box"><div class="stat-val" style="color:var(--accent);" id="okVal">0</div><div class="stat-name">Standard</div></div>
-    </div>
-
-    <div class="loading-bar" id="loadBar"><div class="loading-fill" id="loadFill"></div></div>
   </div>
 
-<script>
-/* ===========================
-   0) CONFIG CHECK
-=========================== */
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+  <!-- config.js trebuie să definească window.PPLX_API_KEY și opțional window.PPLX_MODEL -->
+  <script src="./config.js"></script>
+
+  <script>
+/* =========================== 0) CONFIG CHECK =========================== */
 (function(){
   const el = document.getElementById('keyStatus');
   const k = (window.PPLX_API_KEY || '').trim();
@@ -193,27 +158,14 @@
   else el.innerText = 'Cheie lipsă/invalidă în config.js.';
 })();
 
-/* ===========================
-   1) HARTĂ + BASEMAPS
-=========================== */
-const baseLight = L.tileLayer(
-  'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-  { attribution:'CARTO' }
-);
-
-const baseSat = L.tileLayer(
-  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-  { attribution:'Esri' }
-);
-
+/* =========================== 1) HARTĂ + BASEMAPS =========================== */
+const baseLight = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', { attribution:'CARTO' });
+const baseSat   = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution:'Esri' });
 const map = L.map('map', { zoomControl:false, layers:[baseLight] }).setView([46.00, 25.00], 7);
 L.control.zoom({ position:'topright' }).addTo(map);
 
-/* ===========================
-   2) DATA + LAYERS
-=========================== */
+/* =========================== 2) DATA + LAYERS =========================== */
 let data = { lockers: [], awbJL: {}, awbJLM: {}, popJL: {} };
-
 let detectedMonths = [];
 let addMode = false;
 
@@ -262,23 +214,19 @@ L.control.layers(
 /* Search index pentru lockere */
 let lockerMarkers = [];
 
-/* ===========================
-   3) UTILS
-=========================== */
+/* =========================== 3) UTILS =========================== */
 function splitCSV(line){
   const s = String(line || '');
   const comma = (s.match(/,/g) || []).length;
-  const semi  = (s.match(/;/g) || []).length;
+  const semi = (s.match(/;/g) || []).length;
   const sep = semi > comma ? ';' : ',';
-
   const res = [];
   let curr = '';
   let inQt = false;
-
   for(let i=0;i<s.length;i++){
     const c = s[i];
     if(c === '"'){ inQt = !inQt; continue; }
-    if(c === sep && !inQt){ res.push(curr.trim()); curr = ''; continue; }
+    if(c === sep && !inQt){ res.push(curr.trim()); curr=''; continue; }
     curr += c;
   }
   res.push(curr.trim());
@@ -304,15 +252,12 @@ function parseLoadPercent(raw){
   if(raw === null || raw === undefined) return NaN;
   let s = String(raw).replace(/"/g,'').trim();
   if(!s) return NaN;
-
   s = s.replace('%','').trim();
   s = s.replace(/\s+/g,'');
   if(s.includes(',') && !s.includes('.')) s = s.replace(',', '.');
   if(s.includes(',') && s.includes('.')) s = s.replace(/,/g,'');
-
   const v = parseFloat(s);
   if(isNaN(v)) return NaN;
-
   if(v >= 0 && v <= 1.5) return v * 100;
   if(v > 1.5 && v <= 250) return v;
   return NaN;
@@ -336,9 +281,10 @@ function makeJLKey(judetRaw, localitateRaw){
 
 function getDist(lat1, lon1, lat2, lon2){
   const R = 6371e3;
-  const a = Math.sin((lat2-lat1)*Math.PI/360)**2 +
-            Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*
-            Math.sin((lon2-lon1)*Math.PI/360)**2;
+  const a =
+    Math.sin((lat2-lat1)*Math.PI/360)**2 +
+    Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180) *
+    Math.sin((lon2-lon1)*Math.PI/360)**2;
   return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
 }
 
@@ -356,34 +302,27 @@ function monthsAgo(d){
   return (now.getFullYear()-d.getFullYear())*12 + (now.getMonth()-d.getMonth());
 }
 
-/* ===========================
-   3.5) CONTEXT PENTRU AI (DIN FIȘIER)
-=========================== */
+/* =========================== 3.5) CONTEXT PENTRU AI (DIN FIȘIER) =========================== */
 function buildLockersContextForAI(options = {}){
   const lockers = Array.isArray(data.lockers) ? data.lockers : [];
   const topN = Math.max(10, Math.min(120, options.topN ?? 60));
-
   if(!lockers.length){
     return { ok:false, note:'NU există lockere încărcate (data.lockers este gol). Așteaptă autoload-ul sau încarcă manual fișierul Lockere.' };
   }
-
   const total = lockers.length;
   const avgAll = +(lockers.reduce((s,l)=>s+(l.loadNov25||0),0) / Math.max(1,total)).toFixed(1);
-
   const criticUrgent = lockers.filter(l => (l.loadNov25||0) >= 95 || (l.daysOff||0) > 5).length;
   const criticStandard = lockers.filter(l => (l.loadNov25||0) >= 85 && (l.loadNov25||0) < 95 && (l.daysOff||0) <= 5).length;
   const atentie = lockers.filter(l => (l.loadNov25||0) >= 75 && (l.loadNov25||0) < 85).length;
 
-  const top = lockers
-    .slice()
+  const top = lockers.slice()
     .sort((a,b)=>(b.loadNov25||0)-(a.loadNov25||0))
     .slice(0, topN)
     .map(l => ({
       nume: l.nume || '',
       oras: l.city || '',
       adresa: l.addr || '',
-      lat: l.lat,
-      lng: l.lng,
+      lat: l.lat, lng: l.lng,
       loadNov25: +(l.loadNov25||0).toFixed(1),
       loadNov24: +(l.loadNov24||0).toFixed(1),
       avgHist: +(l.avgHist||0).toFixed(1),
@@ -401,48 +340,38 @@ function buildLockersContextForAI(options = {}){
   };
 }
 
-/* ===========================
-   (NOU) RAPORT SINTETIC + EXPORT TXT
-=========================== */
+/* =========================== RAPORT + EXPORT TXT =========================== */
 let LAST_REPORT_TXT = '';
 let LAST_REPORT_NAME = 'raport_easybox.txt';
 
 function formatReportTxt(r){
   const lines = [];
-
   lines.push('BREAKDOWN DENSITATE REALĂ:');
   lines.push(`🎯 Scor final: ${Number(r.score_final ?? 0).toFixed(1)}/100`);
   lines.push(`📦 Factor locker-e (60%): ${Number(r.factor_lockere ?? 0).toFixed(1)}/100`);
   lines.push(`👥 Factor populație (40%): ${Number(r.factor_populatie ?? 0).toFixed(1)}/100`);
-
   if(r.zona) lines.push(`📍 Zonă: ${r.zona}`);
   if(r.densitate_hab_km2 !== null && r.densitate_hab_km2 !== undefined) lines.push(`🏙️ Densitate: ${r.densitate_hab_km2} hab/km²`);
 
   lines.push(`🏪 Locker-e în 500m: ${r.lockere_500m ?? 0} (încărcare medie ${(Number(r.avg_load_500m ?? 0)).toFixed(1)}%)`);
-
   if(r.recomandare_text) lines.push(`🌟 ${String(r.recomandare_text).toUpperCase()}`);
 
   lines.push(`🤖 Scor AI: ${Math.round(r.scor_ai ?? 0)}/100`);
   if(r.utilizare_estimata_pct !== null && r.utilizare_estimata_pct !== undefined) lines.push(`📊 Utilizare estimată: ${r.utilizare_estimata_pct}%`);
   if(r.trend_zona_500m) lines.push(`📈 Trend Zonă (500m): ${r.trend_zona_500m}`);
   if(r.avg_load_istoric_500m !== null && r.avg_load_istoric_500m !== undefined) lines.push(`⚖️ Încărcare Medie Istorică Zonă: ${Number(r.avg_load_istoric_500m).toFixed(1)}%`);
+  if(r.instalari_ultimul_an_500m !== null && r.instalari_ultimul_an_500m !== undefined) lines.push(`🆕 Instalări în ultimul an (500m): ${r.instalari_ultimul_an_500m}`);
+  if(typeof r.cerere_indusa_probabila === 'boolean') lines.push(`📦 Cerere indusă probabilă: ${r.cerere_indusa_probabila ? 'DA' : 'NU'}`);
+
   if(r.degrevare_text) lines.push(`🚀 ${r.degrevare_text}`);
 
-  lines.push('🚀 LOCKER-E DEGREVATE (Max 500m):');
+  lines.push(`🚀 LOCKER-E DEGREVATE (Raza ${r.degrevare_raza_m || 500}m):`);
   const list = Array.isArray(r.lockere_degrevate) ? r.lockere_degrevate : [];
   const show = list.slice(0, 6);
   for(const x of show){
-    const name = x.nume || '-';
-    const dist = x.dist_m ?? '-';
-    const before = (x.before_pct ?? '-');
-    const after = (x.after_pct ?? '-');
-    const delta = (x.delta_pct ?? '-');
-    lines.push(`• ${name} (${dist}m): ${before}% → ${after}% (${delta}%)`);
+    lines.push(`• ${x.nume || '-'} (${x.dist_m ?? '-'}m): ${x.before_pct ?? '-'}% → ${x.after_pct ?? '-'}% (${x.delta_pct ?? '-'}%)`);
   }
-  if(list.length > show.length){
-    lines.push(`... și încă ${list.length - show.length} locker-e`);
-  }
-
+  if(list.length > show.length) lines.push(`... și încă ${list.length - show.length} locker-e`);
   return lines.join('\n');
 }
 
@@ -454,34 +383,100 @@ function renderReportToHtml(r){
 
 function exportLastReport(){
   if(!LAST_REPORT_TXT) return;
-
   const blob = new Blob([LAST_REPORT_TXT], { type:'text/plain;charset=utf-8' });
   const url = URL.createObjectURL(blob);
-
   const a = document.createElement('a');
   a.href = url;
   a.download = LAST_REPORT_NAME || 'raport_easybox.txt';
   document.body.appendChild(a);
   a.click();
   a.remove();
-
   URL.revokeObjectURL(url);
 }
 
 /* ===========================
-   4) UPLOAD HANDLER
+   IMPACT strict 200m / 500m (ordonat, filtrat >=10m)
 =========================== */
+function getImpactLists(lat, lng){
+  const list200 = [];
+  const list500 = [];
+
+  for(const l of (data.lockers || [])){
+    const d = getDist(lat, lng, l.lat, l.lng);
+    if(d <= 200) list200.push({ locker:l, dist:d });
+    if(d <= 500) list500.push({ locker:l, dist:d });
+  }
+
+  list200.sort((a,b)=>a.dist-b.dist);
+  list500.sort((a,b)=>a.dist-b.dist);
+
+  const min10 = arr => arr.filter(x => x.dist >= 10);
+  return { r200: min10(list200), r500: min10(list500) };
+}
+
+/* ===========================
+   DEGREVARE deterministică (încărcare × proximitate)
+=========================== */
+function computeDecongestion(contextData){
+  const r200 = contextData?.impact200?.rows || [];
+  const r500 = contextData?.impact500?.rows || [];
+
+  function calc(arr, radius, maxPp){
+    const p = 2;
+    const items = arr.map(x => {
+      const dist = Math.max(10, x.dist || radius);
+      const z = Math.max(0, 1 - (dist / radius));
+      const distFactor = Math.pow(z, p);
+      const loadFactor = Math.max(0, (x.loadNov25 || 0) - 70);
+      const w = loadFactor * distFactor;
+      return { ...x, w };
+    });
+
+    const W = items.reduce((s,i)=>s+i.w,0) || 1;
+
+    const out = items.map(i => {
+      const delta = -(maxPp * (i.w / W));
+      const after = Math.max(0, (i.loadNov25 || 0) + delta);
+      return {
+        nume: i.name,
+        dist_m: i.dist,
+        before_pct: +(i.loadNov25 || 0).toFixed(1),
+        after_pct: +after.toFixed(1),
+        delta_pct: +delta.toFixed(1)
+      };
+    });
+
+    out.sort((a,b)=>a.dist_m-b.dist_m);
+    return out.slice(0, 6);
+  }
+
+  return {
+    list200: calc(r200, 200, 12),
+    list500: calc(r500, 500, 6)
+  };
+}
+
+/* ===========================
+   Regula ta: 200m dacă >=2 lockere în 200m, altfel 500m
+=========================== */
+function selectDecongestionList(contextData){
+  const c200 = contextData?.impact200?.count || 0;
+  const chosenRadius = (c200 >= 2) ? 200 : 500;
+  const decong = computeDecongestion(contextData);
+  const chosenList = (chosenRadius === 200) ? decong.list200 : decong.list500;
+  return { chosenRadius, chosenList, list200: decong.list200, list500: decong.list500 };
+}
+
+/* =========================== 4) UPLOAD HANDLER =========================== */
 function handleFileUpload(input, type){
   const file = input.files[0];
   if(!file) return;
-
   const r = new FileReader();
   r.onload = e => {
     const t = e.target.result;
     if(type === 'lockers') processLockers(t);
     if(type === 'awb') processAWB(t);
     if(type === 'pop') processPop(t);
-
     const el = document.getElementById('status' + type.charAt(0).toUpperCase() + type.slice(1));
     if(el) el.innerText = 'Încărcat';
     speak('Fișierul ' + type + ' a fost procesat.');
@@ -489,9 +484,7 @@ function handleFileUpload(input, type){
   r.readAsText(file);
 }
 
-/* ===========================
-   5) LOCKERS CSV
-=========================== */
+/* =========================== 5) LOCKERS CSV =========================== */
 function processLockers(csv){
   Object.values(layers).forEach(g => g.clearLayers());
   lockerMarkers = [];
@@ -503,8 +496,8 @@ function processLockers(csv){
   if(lines.length < 2) return;
 
   const h = splitCSV(lines[0]).map(x => x.replace(/"/g,'').trim());
-
   detectedMonths = [];
+
   h.forEach((col, idx) => {
     const m = col.match(/([a-zA-Z]+)\s+(\d{4})/);
     if(m && !col.toLowerCase().includes('inactiv')){
@@ -544,13 +537,9 @@ function processLockers(csv){
 
     let historyValues = [];
     let monthsWithData = 0;
-
     detectedMonths.forEach(m => {
       const p = parseLoadPercent(getVal(row, m.idx));
-      if(!isNaN(p)){
-        historyValues.push(p);
-        monthsWithData++;
-      }
+      if(!isNaN(p)){ historyValues.push(p); monthsWithData++; }
     });
 
     let avgHist = historyValues.length ? historyValues.reduce((a,b)=>a+b,0) / historyValues.length : 0;
@@ -570,6 +559,7 @@ function processLockers(csv){
     else if(loadNov25 < loadNov24 - 5) trendStr = 'Sub medie';
 
     const daysOff = parseIntSafe(getVal(row, idx.inactiv)) || 0;
+
     const cleanInst = (getVal(row, idx.install) || '').split(' ')[0];
     const installDate = ymdToDate(cleanInst);
     const installMonthsAgo = monthsAgo(installDate);
@@ -599,14 +589,7 @@ function processLockers(csv){
 
     data.lockers.push(locker);
 
-    const marker = L.circleMarker([lat,lng], {
-      radius: 7,
-      fillColor: statusColors[status],
-      color: '#000',
-      weight: 1,
-      opacity: 1,
-      fillOpacity: 0.85
-    });
+    const marker = L.circleMarker([lat,lng], { radius: 7, fillColor: statusColors[status], color: '#000', weight: 1, opacity: 1, fillOpacity: 0.85 });
 
     const trendIcon = locker.trend === 'Peste medie' ? '📈' : (locker.trend === 'Sub medie' ? '📉' : '➡️');
     const monthsText = `${locker.monthsWithData || 0}/12`;
@@ -625,8 +608,8 @@ function processLockers(csv){
       <div class="popup-row"><span class="popup-label">📅 Instalare:</span><span class="popup-value">${locker.install || '-'}</span></div>
       <div class="popup-row"><span class="popup-label">🔧 Model:</span><span class="popup-value">${locker.model || '-'}</span></div>
     `;
-
     marker.bindPopup(popupContent);
+
     layers[status].addLayer(marker);
     lockerMarkers.push({ marker, locker });
   });
@@ -638,9 +621,7 @@ function processLockers(csv){
   document.getElementById('statusLockers').innerText = `Actualizat: ${data.lockers.length} unități`;
 }
 
-/* ===========================
-   6) AWB CSV
-=========================== */
+/* =========================== 6) AWB CSV =========================== */
 function processAWB(csv){
   data.awbJL = {};
   data.awbJLM = {};
@@ -694,37 +675,29 @@ function processAWB(csv){
   document.getElementById('statusAWB').innerText = `AWB OK: ${ok} rânduri`;
 }
 
-/* ===========================
-   7) POP CSV
-=========================== */
+/* =========================== 7) POP CSV =========================== */
 function processPop(csv){
   data.popJL = {};
-
   const lines = csv.split(/\r?\n/).filter(x => x.trim().length);
   if(lines.length < 2){ document.getElementById('statusPop').innerText = 'POP: fișier gol'; return; }
 
   const first = splitCSV(lines[0]).map(x => x.replace(/"/g,'').trim());
   const fNorm = first.map(norm);
-
   const hasHeader = fNorm.includes('judet') && (fNorm.includes('localitate') || fNorm.includes('localitatea')) && fNorm.join(' ').includes('pop');
 
   let ok = 0;
-
   if(hasHeader){
     const idxJ = fNorm.findIndex(x => x === 'judet' || x.includes('judet'));
     const idxL = fNorm.findIndex(x => x === 'localitate' || x.includes('localit'));
     const idxP = fNorm.findIndex(x => x.includes('pop'));
-
     for(const l of lines.slice(1)){
       const row = splitCSV(l);
       const judet = (row[idxJ] ?? '').replace(/"/g,'').trim();
       const loc   = (row[idxL] ?? '').replace(/"/g,'').trim();
       const pop   = parseIntSafe(row[idxP] ?? '');
       if(!judet || !loc || isNaN(pop)) continue;
-
       const key = makeJLKey(judet, loc);
       if(!key) continue;
-
       data.popJL[key] = Math.max(data.popJL[key] || 0, pop);
       ok++;
     }
@@ -732,18 +705,14 @@ function processPop(csv){
     for(const l of lines.slice(1)){
       const line = l.replace(/"/g,'').trim();
       if(!line) continue;
-
       const parts = line.split(/\s+/);
       if(parts.length < 3) continue;
-
       const pop = parseIntSafe(parts[parts.length - 1]);
       if(isNaN(pop)) continue;
-
       const judet = parts[0];
       const loc = parts.slice(1, parts.length - 1).join(' ');
       const key = makeJLKey(judet, loc);
       if(!key) continue;
-
       data.popJL[key] = Math.max(data.popJL[key] || 0, pop);
       ok++;
     }
@@ -752,14 +721,9 @@ function processPop(csv){
   document.getElementById('statusPop').innerText = `POP OK: ${ok} rânduri`;
 }
 
-/* ===========================
-   AUTOLOAD CSV din repo (/data)
-=========================== */
+/* =========================== AUTOLOAD CSV din repo (/data) =========================== */
 async function loadAllCSVs(){
-  const setStatus = (id, txt) => {
-    const el = document.getElementById(id);
-    if(el) el.innerText = txt;
-  };
+  const setStatus = (id, txt) => { const el = document.getElementById(id); if(el) el.innerText = txt; };
 
   try{
     setStatus('statusLockers', 'Se încarcă automat...');
@@ -793,36 +757,17 @@ async function loadAllCSVs(){
 }
 window.addEventListener('load', loadAllCSVs);
 
-/* ===========================
-   10) IMPACT CIRCLES
-=========================== */
+/* =========================== 10) IMPACT CIRCLES =========================== */
 function drawImpactCircles(latlng){
   layers['Impact 200m'].clearLayers();
   layers['Impact 500m'].clearLayers();
-
-  const c200 = L.circle(latlng, {
-    radius: 200,
-    color: '#00ff88',
-    weight: 2,
-    fillColor: '#00ff88',
-    fillOpacity: 0.08
-  });
-
-  const c500 = L.circle(latlng, {
-    radius: 500,
-    color: '#ff00cc',
-    weight: 2,
-    fillColor: '#ff00cc',
-    fillOpacity: 0.06
-  });
-
+  const c200 = L.circle(latlng, { radius: 200, color: '#00ff88', weight: 2, fillColor: '#00ff88', fillOpacity: 0.08 });
+  const c500 = L.circle(latlng, { radius: 500, color: '#ff00cc', weight: 2, fillColor: '#ff00cc', fillOpacity: 0.06 });
   layers['Impact 200m'].addLayer(c200);
   layers['Impact 500m'].addLayer(c500);
 }
 
-/* ===========================
-   11) SEARCH
-=========================== */
+/* =========================== 11) SEARCH =========================== */
 function searchLockers(query){
   const q = norm(query);
   if(!q) return [];
@@ -849,11 +794,9 @@ function focusLocker(result){
 
 function searchLockerUI(e){
   if(e.key !== 'Enter') return;
-
   const q = document.getElementById('lockerSearch').value;
   const hits = searchLockers(q);
   const st = document.getElementById('lockerSearchStatus');
-
   if(!hits.length){ st.innerText = 'Niciun rezultat.'; return; }
 
   if(!searchLockerUI._idx || searchLockerUI._lastQ !== norm(q)){
@@ -868,11 +811,72 @@ function searchLockerUI(e){
 }
 
 /* ===========================
-   12) PERPLEXITY (FINAL)
-   - context din fișier (lockere)
-   - răspuns sintetic tip exemplu
-   - export TXT
+   ANALIZĂ PUNCTUALĂ - context cu impact200/impact500 (ordonat, >=10m)
 =========================== */
+function analyzeLocalData(lat, lng, cityName, judetName){
+  const pop = judetName ? (data.popJL[makeJLKey(judetName, cityName)] || 0) : 0;
+  const awb = judetName ? (data.awbJL[makeJLKey(judetName, cityName)] || 0) : 0;
+
+  const impactLists = getImpactLists(lat, lng);
+
+  function enrichImpact(arr){
+    const rows = arr.map(x => {
+      const l = x.locker;
+      const delta = (l.loadNov25 || 0) - (l.loadNov24 || 0);
+      return {
+        name: l.nume || '',
+        dist: x.dist,
+        loadNov25: +(l.loadNov25 || 0).toFixed(1),
+        loadNov24: +(l.loadNov24 || 0).toFixed(1),
+        delta: +delta.toFixed(1),
+        avgHist: +(l.avgHist || 0).toFixed(1),
+        monthsWithData: l.monthsWithData || 0,
+        installs12: (l.installMonthsAgo || Infinity) <= 12,
+        daysOff: l.daysOff || 0
+      };
+    });
+
+    const count = rows.length;
+    const avgLoad = count ? rows.reduce((s,r)=>s+r.loadNov25,0)/count : 0;
+    const avgDelta = count ? rows.reduce((s,r)=>s+r.delta,0)/count : 0;
+    const avgHist = count ? rows.reduce((s,r)=>s+r.avgHist,0)/count : 0;
+
+    const pos = rows.filter(r => r.delta > 0).length;
+    const neg = rows.filter(r => r.delta < 0).length;
+    const installs12 = rows.filter(r => r.installs12).length;
+
+    return {
+      count,
+      avgLoad: +avgLoad.toFixed(1),
+      avgDelta: +avgDelta.toFixed(1),
+      avgHist: +avgHist.toFixed(1),
+      posDeltas: pos,
+      negDeltas: neg,
+      installs12,
+      rows
+    };
+  }
+
+  const impact200 = enrichImpact(impactLists.r200);
+  const impact500 = enrichImpact(impactLists.r500);
+
+  const anchors = [];
+  (impact500.rows || []).forEach(x=>{
+    const n = (x.name||'').toLowerCase();
+    ANCHORS.forEach(tag => { if(n.includes(tag) && !anchors.includes(tag)) anchors.push(tag); });
+  });
+
+  return {
+    pop, awb,
+    city: cityName,
+    judet: judetName || '',
+    anchors,
+    impact200,
+    impact500
+  };
+}
+
+/* =========================== 12) PERPLEXITY (raport JSON + export) =========================== */
 async function askPerplexity(question, contextData=null){
   const apiKey = (window.PPLX_API_KEY || '').trim();
   if(!apiKey || !apiKey.startsWith('pplx-')){
@@ -887,7 +891,6 @@ async function askPerplexity(question, contextData=null){
 
   const ctx = buildLockersContextForAI({ topN: 60 });
 
-  // Schema JSON pentru raport sintetic (structured output)
   const response_format = {
     type: "json_schema",
     json_schema: {
@@ -906,6 +909,9 @@ async function askPerplexity(question, contextData=null){
           avg_load_500m: { type: "number" },
           avg_load_istoric_500m: { type: ["number","null"] },
 
+          instalari_ultimul_an_500m: { type: ["integer","null"] },
+          cerere_indusa_probabila: { type: ["boolean","null"] },
+
           recomandare_text: { type: "string" },
 
           scor_ai: { type: "number" },
@@ -913,6 +919,7 @@ async function askPerplexity(question, contextData=null){
           trend_zona_500m: { type: "string" },
 
           degrevare_text: { type: ["string","null"] },
+          degrevare_raza_m: { type: ["integer","null"] },
 
           lockere_degrevate: {
             type: "array",
@@ -940,30 +947,17 @@ async function askPerplexity(question, contextData=null){
     }
   };
 
-  // Prompt strict: JSON only + fără browsing
   let systemPrompt =
 `Ești un expert logistic senior pentru rețeaua easybox.
-Obiectiv: generezi un RAPORT SINTETIC operațional în formatul cerut.
-Răspunde STRICT în JSON conform schemei response_format.
-Nu include text în afara JSON.
-Nu folosi browsing/web (nu menționa trafic/metrou).
-Folosește doar datele primite în mesajul user și contextData (dacă există).`;
+Obiectiv: RAPORT SINTETIC operațional.
+Răspunde STRICT în JSON conform response_format (fără text în afara JSON).
+Nu folosi browsing/web; folosește doar datele primite.
 
-  // Context din click/scan (raze) – dacă există
-  if(contextData){
-    const m = contextData.metrics || {};
-    systemPrompt +=
-`\n\nCONTEXT ZONĂ:
-- Zonă: ${contextData.city} (${contextData.judet})
-- Populație (localitate): ${contextData.pop}
-- Volum AWB (localitate): ${contextData.awb}
-- 200m: lockere=${m.r200?.count||0}, avgLoadNov25=${m.r200?.avgLoad||0}%, avgDelta=${m.r200?.avgTrendDelta||0}
-- 500m: lockere=${m.r500?.count||0}, avgLoadNov25=${m.r500?.avgLoad||0}%, avgDelta=${m.r500?.avgTrendDelta||0}
-- 1500m: lockere=${m.r1500?.count||0}, avgLoadNov25=${m.r1500?.avgLoad||0}%, avgDelta=${m.r1500?.avgTrendDelta||0}
-- TOP (1500m): ${JSON.stringify(m.r1500?.top||[])}`;
-  }
+Reguli:
+- Decizia se ia pe 500m (impact500): avgLoad, avgDelta, installs12, avgHist.
+- 200m este severitate locală.
+- LOCKER-E DEGREVATE trebuie să fie EXACT lista primită (LOCKERE_DEGREVATE_AFIȘATE). Nu recalcula.`;
 
-  // Payload user include date lockere (rezumat + top)
   let userPayload = question;
 
   if(ctx.ok){
@@ -971,21 +965,45 @@ Folosește doar datele primite în mesajul user și contextData (dacă există).
 
 DATE DIN FIȘIER (LOCKERE):
 REZUMAT: ${JSON.stringify(ctx.summary)}
-TOP_LOCKERE: ${JSON.stringify(ctx.topLockers)}
-
-Reguli:
-- Dacă contextData există, bazează lockere_500m și avg_load_500m pe contextData.metrics.r500.
-- Dacă contextData nu există, estimează lockere_500m și avg_load_500m folosind TOP_LOCKERE (heuristic).
-- Generează lockere_degrevate ca o listă de max 6 din top (cu dist_m aproximat dacă nu ai click; altfel folosește distanțele din contextData.top).
-- Nu inventa locații; dacă lipsește o valoare, pune null/0, dar păstrează JSON valid.`;
+TOP_LOCKERE: ${JSON.stringify(ctx.topLockers)}`;
   } else {
     userPayload += `
 
 DATE DIN FIȘIER (LOCKERE): LIPSĂ
-NOTĂ: ${ctx.note}
+NOTĂ: ${ctx.note}`;
+  }
 
-Reguli:
-- Returnează un JSON valid, cu recomandare_text care cere încărcarea/autoload a fișierului lockere.`;
+  if(contextData){
+    const decongPack = selectDecongestionList(contextData);
+
+    const indus = (contextData.impact500.installs12 || 0) > 0 &&
+      Math.abs((contextData.impact500.avgLoad || 0) - (contextData.impact500.avgHist || 0)) < 3 &&
+      (contextData.impact500.avgDelta || 0) > 0;
+
+    userPayload += `
+
+CONTEXT ZONĂ (calculat local):
+- zonă: ${contextData.city} (${contextData.judet})
+- impact200: ${JSON.stringify({count:contextData.impact200.count, avgLoad:contextData.impact200.avgLoad, avgDelta:contextData.impact200.avgDelta, installs12:contextData.impact200.installs12})}
+- impact500: ${JSON.stringify({count:contextData.impact500.count, avgLoad:contextData.impact500.avgLoad, avgDelta:contextData.impact500.avgDelta, avgHist:contextData.impact500.avgHist, installs12:contextData.impact500.installs12, posDeltas:contextData.impact500.posDeltas, negDeltas:contextData.impact500.negDeltas})}
+
+DEGREVARE (determinist):
+- regula rază: 200m dacă impact200.count>=2, altfel 500m
+- RAZA_ALEASĂ: ${decongPack.chosenRadius}
+- LOCKERE_DEGREVATE_AFIȘATE: ${JSON.stringify(decongPack.chosenList)}
+
+HINT:
+- cerere_indusa_probabila_hint: ${indus ? 'true' : 'false'}
+
+CERINȚE:
+- instalari_ultimul_an_500m = impact500.installs12
+- trend_zona_500m: ascendent dacă avgDelta>0 sau posDeltas>negDeltas; altfel stabil/descendent
+- avg_load_istoric_500m = impact500.avgHist
+- degrevare_raza_m = RAZA_ALEASĂ
+- lockere_degrevate = LOCKERE_DEGREVATE_AFIȘATE`;
+  } else {
+    userPayload += `
+Dacă nu există contextData, returnează un JSON valid, dar recomandă click pe hartă pentru calcul 200/500m.`;
   }
 
   const messages = [
@@ -1009,24 +1027,18 @@ Reguli:
 
     const rawText = json?.choices?.[0]?.message?.content || '';
     let obj = null;
-
-    try{
-      obj = JSON.parse(rawText);
-    } catch(parseErr){
-      // fallback: dacă nu e JSON valid
+    try{ obj = JSON.parse(rawText); }
+    catch(parseErr){
       responseBox.innerHTML = marked.parse(rawText || '(Fără răspuns)');
       return;
     }
 
-    // Randare ca exemplu
     responseBox.innerHTML = renderReportToHtml(obj);
 
-    // Export pregătit
     LAST_REPORT_TXT = formatReportTxt(obj);
     LAST_REPORT_NAME = `raport_${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.txt`;
     document.getElementById('exportBtn').style.display = 'block';
 
-    // voice scurt
     speak(`Recomandare: ${obj.recomandare_text}. Scor final ${Math.round(obj.score_final||0)} din 100.`);
   } catch(e){
     console.error(e);
@@ -1035,9 +1047,7 @@ Reguli:
   }
 }
 
-/* ===========================
-   13) VOICE
-=========================== */
+/* =========================== 13) VOICE =========================== */
 const synth = window.speechSynthesis;
 let recognition = null;
 let isListening = false;
@@ -1057,11 +1067,12 @@ function toggleVoice(){
     return;
   }
   if(isListening){ recognition.stop(); return; }
-
   recognition = new webkitSpeechRecognition();
   recognition.lang = 'ro-RO';
+
   recognition.onstart = () => { isListening=true; document.getElementById('micBtn').classList.add('active'); };
   recognition.onend = () => { isListening=false; document.getElementById('micBtn').classList.remove('active'); };
+
   recognition.onresult = e => {
     const q = e.results[0][0].transcript;
     document.getElementById('searchInput').value = q;
@@ -1083,15 +1094,10 @@ function handleInput(e, fromVoice=false){
   }
 }
 
-/* ===========================
-   14) AUTO-SCAN
-=========================== */
+/* =========================== 14) AUTO-SCAN =========================== */
 async function startAutoScan(cityFromParam=null){
   let city = cityFromParam;
-  if(!city){
-    city = prompt('Introdu localitatea / zona pentru scan:');
-    if(!city) return;
-  }
+  if(!city){ city = prompt('Introdu localitatea / zona pentru scan:'); if(!city) return; }
 
   speak('Analizez ' + city + '...');
   const loadBar = document.getElementById('loadBar');
@@ -1102,26 +1108,18 @@ async function startAutoScan(cityFromParam=null){
   try{
     const r = await fetch('https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&q=' + encodeURIComponent(city));
     const d = await r.json();
-    if(!d.length){
-      speak('Locație necunoscută.');
-      loadBar.style.display = 'none';
-      return;
-    }
+    if(!d.length){ speak('Locație necunoscută.'); loadBar.style.display = 'none'; return; }
 
     loadFill.style.width = '55%';
-
     const b = d[0].boundingbox;
-    map.fitBounds([[b[0], b[2]], [b[1], b[3]]]);
+    map.fitBounds([[b[0], b[2]],[b[1], b[3]]]);
 
     const centerLat = (parseFloat(b[0]) + parseFloat(b[1])) / 2;
     const centerLng = (parseFloat(b[2]) + parseFloat(b[3])) / 2;
     const center = L.latLng(centerLat, centerLng);
 
     drawImpactCircles(center);
-
-    layers['Propuneri'].addLayer(
-      L.circleMarker(center, { radius: 10, color:'#fff', fillColor:'#ff00cc', fillOpacity:1 })
-    );
+    layers['Propuneri'].addLayer(L.circleMarker(center, { radius: 10, color:'#fff', fillColor:'#ff00cc', fillOpacity:1 }));
 
     const rr = await fetch('https://nominatim.openstreetmap.org/reverse?format=json&addressdetails=1&lat=' + centerLat + '&lon=' + centerLng);
     const rd = await rr.json();
@@ -1130,7 +1128,6 @@ async function startAutoScan(cityFromParam=null){
     const judName = addr.county || addr.state || addr.region || '';
 
     loadFill.style.width = '85%';
-
     const context = analyzeLocalData(centerLat, centerLng, locName, judName);
     await askPerplexity('Raport de oportunitate pentru zona simulată: ' + locName + '?', context);
 
@@ -1142,77 +1139,11 @@ async function startAutoScan(cityFromParam=null){
   }
 }
 
-/* ===========================
-   15) ANALIZĂ PUNCTUALĂ
-=========================== */
-function zoneMetrics(lat, lng){
-  const within200 = [];
-  const within500 = [];
-  const within1500 = [];
-
-  data.lockers.forEach(l => {
-    const d = getDist(lat, lng, l.lat, l.lng);
-    if(d <= 200) within200.push({ locker:l, dist:d });
-    if(d <= 500) within500.push({ locker:l, dist:d });
-    if(d <= 1500) within1500.push({ locker:l, dist:d });
-  });
-
-  function summarize(list){
-    if(!list.length) return { count:0, avgLoad:0, avgTrendDelta:0, installs12:0, top:[] };
-
-    const loads = list.map(x=>x.locker.loadNov25).filter(v=>typeof v==='number' && v>0);
-    const avgLoad = loads.length ? loads.reduce((a,b)=>a+b,0)/loads.length : 0;
-
-    const deltas = list.map(x => (x.locker.loadNov25||0) - (x.locker.loadNov24||0));
-    const avgTrendDelta = deltas.length ? deltas.reduce((a,b)=>a+b,0)/deltas.length : 0;
-
-    const installs12 = list.filter(x => (x.locker.installMonthsAgo||Infinity) <= 12).length;
-
-    const top = list
-      .slice()
-      .sort((a,b)=>(b.locker.loadNov25||0)-(a.locker.loadNov25||0))
-      .slice(0,8)
-      .map(x=>({
-        name:x.locker.nume,
-        city:x.locker.city,
-        load: +(x.locker.loadNov25||0).toFixed(1),
-        off:x.locker.daysOff||0,
-        dist:x.dist
-      }));
-
-    return { count:list.length, avgLoad:+avgLoad.toFixed(1), avgTrendDelta:+avgTrendDelta.toFixed(1), installs12, top };
-  }
-
-  return {
-    r200: summarize(within200),
-    r500: summarize(within500),
-    r1500: summarize(within1500)
-  };
-}
-
-function analyzeLocalData(lat, lng, cityName, judetName){
-  const pop = judetName ? (data.popJL[makeJLKey(judetName, cityName)] || 0) : 0;
-  const awb = judetName ? (data.awbJL[makeJLKey(judetName, cityName)] || 0) : 0;
-
-  const metrics = zoneMetrics(lat, lng);
-
-  const anchors = [];
-  (metrics.r1500.top || []).forEach(x=>{
-    const n = (x.name||'').toLowerCase();
-    ANCHORS.forEach(tag => { if(n.includes(tag) && !anchors.includes(tag)) anchors.push(tag); });
-  });
-
-  return {
-    pop, awb,
-    city: cityName, judet: judetName || '',
-    metrics,
-    anchors
-  };
-}
-
+/* =========================== 15) ANALIZĂ PUNCTUALĂ =========================== */
 function toggleAddMode(){
   addMode = !addMode;
   const btn = document.getElementById('addModeBtn');
+
   if(addMode){
     btn.innerText = 'STOP ANALIZĂ';
     btn.style.borderColor = '#ff3333';
@@ -1221,6 +1152,15 @@ function toggleAddMode(){
     btn.innerText = 'ANALIZĂ PUNCTUALĂ';
     btn.style.borderColor = '#00ff88';
     btn.style.color = '#00ff88';
+
+    layers['Impact 200m'].clearLayers();
+    layers['Impact 500m'].clearLayers();
+    layers['Propuneri'].clearLayers();
+
+    document.getElementById('aiResponse').style.display = 'none';
+    document.getElementById('exportBtn').style.display = 'none';
+    LAST_REPORT_TXT = '';
+    LAST_REPORT_NAME = 'raport_easybox.txt';
   }
 }
 
@@ -1231,28 +1171,22 @@ map.on('click', async e => {
 
   let city = 'Locație';
   let judet = '';
-
   try{
     const r = await fetch('https://nominatim.openstreetmap.org/reverse?format=json&addressdetails=1&lat=' + e.latlng.lat + '&lon=' + e.latlng.lng);
     const d = await r.json();
     const a = d.address || {};
-
     city = a.city || a.town || a.village || a.suburb || a.neighbourhood || city;
     judet = a.county || a.state || a.region || '';
     if(norm(city).includes('sector')) city = 'Bucuresti';
   } catch(err){}
 
-  layers['Propuneri'].addLayer(
-    L.circleMarker(e.latlng, { radius: 10, color:'#fff', fillColor:'#ff00cc', fillOpacity:1 })
-  );
+  layers['Propuneri'].addLayer(L.circleMarker(e.latlng, { radius: 10, color:'#fff', fillColor:'#ff00cc', fillOpacity:1 }));
 
   const context = analyzeLocalData(e.latlng.lat, e.latlng.lng, city, judet);
   askPerplexity('Analizează potențialul unui locker aici (' + city + ', ' + judet + '): ' + e.latlng.lat + ', ' + e.latlng.lng, context);
 });
 
-/* ===========================
-   16) RESET
-=========================== */
+/* =========================== 16) RESET =========================== */
 function resetAll(){
   Object.values(layers).forEach(l => l.clearLayers());
   data.lockers = [];
@@ -1279,6 +1213,6 @@ function resetAll(){
 
   speak('Resetat.');
 }
-</script>
+  </script>
 </body>
 </html>
