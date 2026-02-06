@@ -4,13 +4,13 @@
     <title>🕵️‍♂️ QUEST DETECTIVE - PERPLEXITY EDITION</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
+
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    
+
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-    
+
     <style>
         body { font-family: 'Inter', sans-serif; margin: 0; padding: 0; background: #222; color: #e0e0e0; overflow: hidden; font-size: 14px; }
         #map { height: 100vh; width: 100%; position: relative; z-index: 1;}
@@ -24,7 +24,7 @@
             box-shadow: 0 0 30px rgba(0,0,0,0.6);
             max-height: 90vh; overflow-y: auto;
         }
-        
+
         .quest-title {
             font-family: 'Inter', sans-serif; font-size: 20px; font-weight: 800; color: #00ff88;
             margin-bottom: 15px; text-transform: uppercase; border-bottom: 2px solid #00ff88; padding-bottom: 10px;
@@ -34,7 +34,7 @@
         .quest-label { font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase; margin-bottom: 5px; display: block; }
         .quest-input-group { margin-bottom: 15px; background: #1a1e29; padding: 10px; border-radius: 8px; border: 1px solid #333; }
         input[type="file"] { width: 100%; font-size: 11px; color: #ccc; border: none; background: transparent; }
-        
+
         .api-input {
             width: 100%; padding: 8px; background: #000; border: 1px solid #00ff88; color: #00ff88;
             font-family: monospace; border-radius: 4px; box-sizing: border-box; margin-bottom: 5px; font-size: 11px;
@@ -73,34 +73,49 @@
         .stat-val { font-size: 16px; font-weight: 800; color: #fff; }
         .stat-name { font-size: 9px; color: #666; text-transform: uppercase; }
 
-        .leaflet-popup-content-wrapper { 
-            background: rgba(18, 22, 33, 0.98); color: #eee; border: 1px solid #444; border-radius: 8px; 
+        .leaflet-popup-content-wrapper {
+            background: rgba(18, 22, 33, 0.98); color: #eee; border: 1px solid #444; border-radius: 8px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.8);
         }
         .leaflet-popup-content { width: 280px !important; margin: 15px; }
         .leaflet-popup-tip { background: #1a1e29; }
-        
-        .popup-header { 
-            font-weight: 900; color: #00ff88; font-size: 15px; text-align: center; 
-            margin-bottom: 12px; border-bottom: 1px solid #444; padding-bottom: 8px; 
+
+        .popup-header {
+            font-weight: 900; color: #00ff88; font-size: 15px; text-align: center;
+            margin-bottom: 12px; border-bottom: 1px solid #444; padding-bottom: 8px;
         }
-        
-        .popup-row { 
+
+        .popup-row {
             display: flex; justify-content: space-between; align-items: center;
-            font-size: 12px; margin-bottom: 6px; border-bottom: 1px dashed #333; padding-bottom: 4px; 
+            font-size: 12px; margin-bottom: 6px; border-bottom: 1px dashed #333; padding-bottom: 4px;
         }
         .popup-label { color: #888; font-weight: 600; }
         .popup-value { font-weight: 700; color: #fff; text-align: right; }
-        
-        .val-high { color: #00ff88; } 
+
+        .val-high { color: #00ff88; }
         .val-low { color: #ff3333; }
 
         .loading-bar { height: 3px; background: #333; width: 100%; display: none; margin-top:5px; }
         .loading-fill { height: 100%; background: #00ff88; width: 0%; transition: width 0.3s; }
-        
+
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #111; }
         ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+
+        .tiny-btn {
+            width: 100%;
+            padding: 8px;
+            margin-top: 6px;
+            background: transparent;
+            border: 1px dashed #444;
+            color: #aaa;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+        .tiny-btn:hover { border-color: #00ff88; color: #00ff88; }
     </style>
 </head>
 <body>
@@ -115,7 +130,7 @@
 
         <div class="quest-input-group" style="border-color: #00ff88;">
             <span class="quest-label" style="color:#00ff88">🧠 PERPLEXITY API KEY</span>
-            <input type="password" id="apiKey" class="api-input" placeholder="pplx-xxxxxxxxxxxxxxxxxxxx">
+            <input type="password" id="apiKey" class="api-input" placeholder="pplx-xxxxxxxxxxxxxxxxxxxx" oninput="saveApiKey()">
         </div>
 
         <div class="quest-input-group">
@@ -136,6 +151,8 @@
             <div id="statusPop" style="font-size:10px; color:#555; margin-top:2px;">Așteptare fișier...</div>
         </div>
 
+        <button onclick="clearLocalCache()" class="tiny-btn">🧹 CLEAR CACHE (IndexedDB)</button>
+
         <div class="quest-input-group">
             <span class="quest-label">💬 ASISTENT INTELIGENT</span>
             <input type="text" id="searchInput" class="quest-search" placeholder="Ex: Analizează Baicului..." onkeyup="handleInput(event)">
@@ -153,7 +170,7 @@
             <div class="stat-box"><div class="stat-val" style="color:#ffae00" id="warnVal">0</div><div class="stat-name">Atenție</div></div>
             <div class="stat-box"><div class="stat-val" style="color:#00ff88" id="okVal">0</div><div class="stat-name">Optim</div></div>
         </div>
-        
+
         <div class="loading-bar" id="loadBar"><div class="loading-fill" id="loadFill"></div></div>
     </div>
 
@@ -167,11 +184,11 @@
         let data = { lockers: [], awb: {}, pop: {}, popJudet: {} };
         let detectedMonths = [];
         let addMode = false;
-        
+
         const ANCHORS = ["kaufland", "lidl", "carrefour", "auchan", "mega", "profi", "mall", "plaza", "piata", "residence", "complex", "gara", "universitate", "spital", "market"];
         const MONTHS = {'ianuarie':0,'februarie':1,'martie':2,'aprilie':3,'mai':4,'iunie':5,'iulie':6,'august':7,'septembrie':8,'octombrie':9,'noiembrie':10,'decembrie':11};
         const statusColors = { 'Critic Urgent': '#d60000', 'Critic Standard': '#e67e22', 'Atenție': '#f1c40f', 'Standard': '#27ae60' };
-        
+
         const layers = {
             'Critic Urgent': L.layerGroup().addTo(map),
             'Critic Standard': L.layerGroup().addTo(map),
@@ -179,6 +196,154 @@
             'Standard': L.layerGroup().addTo(map),
             'Propuneri': L.layerGroup().addTo(map)
         };
+
+        // --- LOCAL STORAGE (PILOT) ---
+        const LS = {
+            apiKey: "qd_apiKey",
+            lastQuery: "qd_lastQuery",
+            mapView: "qd_mapView_v1"
+        };
+
+        function saveApiKey() {
+            const v = (document.getElementById('apiKey')?.value || "").trim();
+            localStorage.setItem(LS.apiKey, v);
+        }
+        function loadApiKey() {
+            const v = localStorage.getItem(LS.apiKey);
+            if (v) document.getElementById('apiKey').value = v;
+        }
+        function saveLastQuery(q) {
+            if (q !== undefined && q !== null) localStorage.setItem(LS.lastQuery, String(q));
+        }
+        function loadLastQuery() {
+            const q = localStorage.getItem(LS.lastQuery);
+            if (q) document.getElementById('searchInput').value = q;
+        }
+        function saveMapView() {
+            try {
+                const c = map.getCenter();
+                const payload = { lat: c.lat, lng: c.lng, zoom: map.getZoom() };
+                localStorage.setItem(LS.mapView, JSON.stringify(payload));
+            } catch (e) {}
+        }
+        function loadMapView() {
+            try {
+                const raw = localStorage.getItem(LS.mapView);
+                if (!raw) return;
+                const v = JSON.parse(raw);
+                if (typeof v.lat === "number" && typeof v.lng === "number" && typeof v.zoom === "number") {
+                    map.setView([v.lat, v.lng], v.zoom);
+                }
+            } catch (e) {}
+        }
+
+        map.on('moveend', saveMapView);
+        map.on('zoomend', saveMapView);
+
+        // --- INDEXEDDB CACHE (CSV) ---
+        const IDB = {
+            dbName: "quest_detective_db",
+            store: "files",
+            version: 1
+        };
+
+        function openDB() {
+            return new Promise((resolve, reject) => {
+                const req = indexedDB.open(IDB.dbName, IDB.version);
+                req.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains(IDB.store)) {
+                        db.createObjectStore(IDB.store, { keyPath: "key" });
+                    }
+                };
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        async function idbPut(key, content, meta = {}) {
+            const db = await openDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(IDB.store, "readwrite");
+                tx.oncomplete = () => resolve(true);
+                tx.onerror = () => reject(tx.error);
+                tx.objectStore(IDB.store).put({
+                    key,
+                    content,                 // CSV text
+                    meta,
+                    updatedAt: Date.now()
+                });
+            });
+        }
+
+        async function idbGet(key) {
+            const db = await openDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(IDB.store, "readonly");
+                const req = tx.objectStore(IDB.store).get(key);
+                req.onsuccess = () => resolve(req.result || null);
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        async function idbDelete(key) {
+            const db = await openDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(IDB.store, "readwrite");
+                const req = tx.objectStore(IDB.store).delete(key);
+                req.onsuccess = () => resolve(true);
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        async function clearLocalCache() {
+            if (!confirm("Ștergi cache-ul local (IndexedDB) pentru toate fișierele CSV?")) return;
+            try {
+                await idbDelete("lockers");
+                await idbDelete("awb");
+                await idbDelete("pop");
+                document.getElementById('statusLockers').innerText = "🗑️ Cache șters (lockers)";
+                document.getElementById('statusAWB').innerText = "🗑️ Cache șters (awb)";
+                document.getElementById('statusPop').innerText = "🗑️ Cache șters (pop)";
+                speak("Cache-ul local a fost șters.");
+            } catch (e) {
+                console.error(e);
+                alert("Nu am putut șterge cache-ul: " + e.message);
+            }
+        }
+
+        async function tryAutoloadFromCache() {
+            // încearcă să reîncarce automat cele 3 fișiere la pornire
+            try {
+                const cachedLockers = await idbGet("lockers");
+                if (cachedLockers?.content) {
+                    processLockers(cachedLockers.content);
+                    document.getElementById('statusLockers').innerText = "✅ Încărcat din cache (IndexedDB)";
+                }
+
+                const cachedAWB = await idbGet("awb");
+                if (cachedAWB?.content) {
+                    processAWB(cachedAWB.content);
+                    document.getElementById('statusAWB').innerText = "✅ Încărcat din cache (IndexedDB)";
+                }
+
+                const cachedPop = await idbGet("pop");
+                if (cachedPop?.content) {
+                    processPop(cachedPop.content);
+                    document.getElementById('statusPop').innerText = "✅ Încărcat din cache (IndexedDB)";
+                }
+            } catch (e) {
+                console.warn("Autoload cache failed:", e);
+            }
+        }
+
+        // init la pornire
+        window.addEventListener('load', () => {
+            loadApiKey();
+            loadLastQuery();
+            loadMapView();
+            tryAutoloadFromCache();
+        });
 
         // --- 3. PERPLEXITY AI INTEGRATION ---
         async function askPerplexity(question, contextData = null) {
@@ -237,10 +402,10 @@ REGULI:
 
                 const json = await response.json();
                 if(json.error) throw new Error(json.error.message);
-                
+
                 const rawText = json.choices[0].message.content;
                 responseBox.innerHTML = marked.parse(rawText);
-                
+
                 let cleanText = rawText.replace(/[*#_`]/g, '').split('.').slice(0, 2).join('.');
                 speak(cleanText);
 
@@ -256,13 +421,22 @@ REGULI:
             const file = input.files[0];
             if(!file) return;
             const r = new FileReader();
-            r.onload = e => {
+            r.onload = async (e) => {
                 const t = e.target.result;
+
+                try {
+                    // cache în IndexedDB
+                    await idbPut(type, t, { filename: file.name, size: file.size, type: file.type });
+                } catch (err) {
+                    console.warn("IDB cache failed:", err);
+                }
+
                 if(type==='lockers') processLockers(t);
                 else if(type==='awb') processAWB(t);
                 else if(type==='pop') processPop(t);
-                input.parentElement.style.borderColor = "#00ff88"; 
-                document.getElementById('status' + (type.charAt(0).toUpperCase() + type.slice(1))).innerText = "✅ Încărcat";
+
+                input.parentElement.style.borderColor = "#00ff88";
+                document.getElementById('status' + (type.charAt(0).toUpperCase() + type.slice(1))).innerText = "✅ Încărcat (și salvat în cache)";
                 speak(`Fișierul ${type} a fost procesat.`);
             };
             r.readAsText(file);
@@ -287,7 +461,6 @@ REGULI:
         }
 
         function cleanLocalityName(name) {
-            // scoate prefixe din fișier: MUNICIPIUL/ORAS/ORAȘ/COMUNA/MUN.
             let s = String(name || "").trim();
             s = s.replace(/\s+/g, " ");
             s = s.replace(/^(MUNICIPIUL|MUN\.?|ORAS|ORAȘ|COMUNA)\s+/i, "");
@@ -295,13 +468,11 @@ REGULI:
         }
 
         function buildLocalityKeys(rawName) {
-            // returnează chei posibile pentru matching (cu/ fără prefixe, cu/ fără "sectorul")
             const base = cleanLocalityName(rawName);
             const keys = new Set();
             keys.add(norm(rawName));
             keys.add(norm(base));
 
-            // București sectoare (dacă apar)
             const m = base.match(/sectorul\s*(\d+)/i);
             if(m) {
                 keys.add(norm("sectorul " + m[1]));
@@ -324,7 +495,7 @@ REGULI:
             Object.values(layers).forEach(g => g.clearLayers());
             data.lockers = [];
             let stats = { 'Critic Urgent':0, 'Critic Standard':0, 'Atenție':0, 'Standard':0 };
-            
+
             const lines = csv.split('\n').filter(x => x.trim().length);
             const h = splitCSV(lines[0]).map(x => x.replace(/['"]+/g, ''));
 
@@ -364,7 +535,7 @@ REGULI:
                 if(row.length < h.length) return;
 
                 const getVal = i => i > -1 ? String(row[i]).replace(/['"]+/g, '') : '';
-                
+
                 let lat = parseFloat(getVal(idx.lat));
                 let lng = parseFloat(getVal(idx.lng));
                 if(isNaN(lat) || isNaN(lng)) return;
@@ -392,7 +563,7 @@ REGULI:
 
                 let daysOff = parseInt(getVal(idx.inactiv)) || 0;
                 let cleanInst = getVal(idx.install).split(' ')[0];
-                
+
                 let status = 'Standard';
                 if(loadNov25 > 95 || daysOff > 5) status = 'Critic Urgent';
                 else if(loadNov25 > 85) status = 'Critic Standard';
@@ -400,9 +571,9 @@ REGULI:
                 stats[status]++;
 
                 let locker = {
-                    nume: getVal(idx.nume), lat, lng, 
+                    nume: getVal(idx.nume), lat, lng,
                     loadNov25, loadNov24, avgHist, trend: trendStr,
-                    install: cleanInst, cap: getVal(idx.cap), model: getVal(idx.model), 
+                    install: cleanInst, cap: getVal(idx.cap), model: getVal(idx.model),
                     addr: getVal(idx.addr), city: getVal(idx.city), daysOff,
                     last12m: last12,
                     last12mCount: last12.length,
@@ -412,7 +583,7 @@ REGULI:
                 data.lockers.push(locker);
 
                 const m = L.circleMarker([lat, lng], { radius: 7, fillColor: statusColors[status], color: '#000', weight: 1, opacity: 1, fillOpacity: 0.8 });
-                
+
                 let popupContent = `
                     <div class="popup-header">${locker.nume}</div>
                     <div class="popup-row"><span class="popup-label">📍 Locație:</span> <span class="popup-value">${locker.city}</span></div>
@@ -427,7 +598,7 @@ REGULI:
                     <div class="popup-row"><span class="popup-label">📅 Instalare:</span> <span class="popup-value">${locker.install}</span></div>
                     <div class="popup-row"><span class="popup-label">🔧 Model:</span> <span class="popup-value">${locker.model}</span></div>
                 `;
-                
+
                 m.bindPopup(popupContent);
                 layers[status].addLayer(m);
             });
@@ -445,7 +616,7 @@ REGULI:
                 const c = splitCSV(l);
                 let volIdx = c.findIndex(x => x.toLowerCase().includes("nr total"));
                 let cityIdx = c.findIndex(x => x.toLowerCase().includes("localitate"));
-                
+
                 if(c.length > 2 && volIdx > -1 && cityIdx > -1) {
                     let volStr = c[volIdx].replace(/["']/g,'');
                     if(volStr.includes(',')) volStr = volStr.replace(',','');
@@ -457,7 +628,6 @@ REGULI:
             document.getElementById('statusAWB').innerText = `✅ Volume OK`;
         }
 
-        // NEW: citire robustă populație (Judet,Localitate,Populatie) și mapare pe chei normalizate
         function processPop(csv) {
             data.pop = {};
             data.popJudet = {};
@@ -481,11 +651,9 @@ REGULI:
                 const pop = parseInt(String(popStr).replace(/\s/g,'').replace(/\./g,'').replace(/,/g,''));
                 if(!loc || isNaN(pop) || pop <= 0) return;
 
-                // chei multiple pentru matching
                 const keys = buildLocalityKeys(loc);
                 keys.forEach(k => { data.pop[k] = Math.max(data.pop[k] || 0, pop); });
 
-                // dacă rândul e total județ (observat în fișier: rânduri cu localitate = "ARAD" și judet gol) [file:4]
                 const locNorm = norm(loc);
                 if(jud && locNorm) data.popJudet[norm(jud)] = data.popJudet[norm(jud)] || null;
             });
@@ -510,12 +678,10 @@ REGULI:
         }
 
         function findPopulationForLocality(cityName) {
-            // încearcă mai multe chei: exact, fără prefixe, includes fallback
             const keys = buildLocalityKeys(cityName);
             for(const k of keys) {
                 if(data.pop[k]) return { pop: data.pop[k], matchKey: k, matchType: "exact/normalized" };
             }
-            // fallback: dacă Nominatim dă ceva mai lung, căutăm localități care sunt substring
             const cityKey = norm(cityName);
             let bestPop = 0;
             let bestKey = null;
@@ -529,7 +695,6 @@ REGULI:
         }
 
         function computeLocalityLockerCount(cityName) {
-            // număr lockere în aceeași localitate (în funcție de textul din Locker Oras)
             const cityKey = norm(cityName);
             if(!cityKey) return 0;
 
@@ -537,7 +702,6 @@ REGULI:
             data.lockers.forEach(l => {
                 const lk = l.cityKey || norm(l.city);
                 if(!lk) return;
-                // potrivire tolerantă (ex: "clujnapoca" vs "cluj-napoca")
                 if(lk === cityKey || lk.includes(cityKey) || cityKey.includes(lk)) count++;
             });
             return count;
@@ -546,18 +710,14 @@ REGULI:
         function analyzeLocalData(lat, lng, cityName) {
             let cityKey = norm(cityName);
 
-            // populație localitate
             const popInfo = findPopulationForLocality(cityName);
             const popLocality = popInfo.pop || 0;
 
-            // AWB localitate (mecanismul tău existent; păstrat)
             let awb = 0;
             for(let k in data.awb) if(cityKey.includes(k)) awb = Math.max(awb, data.awb[k]);
 
-            // lockere în localitate (din întreg dataset)
             const localityLockerCount = computeLocalityLockerCount(cityName);
 
-            // indicatori demografici
             const popPerLockerLocality = (popLocality > 0 && localityLockerCount > 0)
               ? Math.round(popLocality / localityLockerCount)
               : null;
@@ -566,7 +726,6 @@ REGULI:
               ? Number(((localityLockerCount / popLocality) * 10000).toFixed(2))
               : null;
 
-            // bucket-uri pe rază
             const buckets = { r0_500: [], r500_1000: [], r0_1000: [] };
             let anchors = [];
 
@@ -684,26 +843,21 @@ REGULI:
                 awb,
                 anchors,
 
-                // populație + matching info
                 popLocality,
                 popMatchType: popInfo.matchType,
                 popMatchKey: popInfo.matchKey,
 
-                // persoane / lockere în localitate
                 localityLockerCount,
                 popPerLockerLocality,
                 lockersPer10kLocality,
 
-                // liste raze
                 lockers_0_500m: buckets.r0_500.slice(0, 50),
                 lockers_500_1000m: buckets.r500_1000.slice(0, 50),
 
-                // agregate raze
                 agg_0_500m,
                 agg_500_1000m,
                 agg_0_1000m,
 
-                // calitate date
                 count_500_1000,
                 coverageLast12Pct
             };
@@ -725,7 +879,7 @@ REGULI:
         function toggleVoice() {
             if (!('webkitSpeechRecognition' in window)) { alert("Necesită Chrome/Edge."); return; }
             if (isListening) { recognition.stop(); return; }
-            
+
             recognition = new webkitSpeechRecognition();
             recognition.lang = 'ro-RO';
             recognition.onstart = () => { isListening=true; document.getElementById('micBtn').classList.add('active'); };
@@ -741,6 +895,7 @@ REGULI:
         function handleInput(e, fromVoice = false) {
             if(e.key === 'Enter' || fromVoice) {
                 const q = document.getElementById('searchInput').value;
+                saveLastQuery(q);
                 if(q.toLowerCase().includes("scan")) {
                     let city = q.replace(/scanează|orașul/gi, "").trim();
                     runAutoScanWrapper(city);
@@ -754,17 +909,17 @@ REGULI:
             if(city.length < 3) return;
             speak(`Analizez ${city}...`);
             document.getElementById('loadBar').style.display = 'block';
-            
+
             try {
                 const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(city)}`);
                 const d = await r.json();
                 if(!d.length) { speak("Locație necunoscută."); return; }
-                
+
                 const b = d[0].boundingbox;
                 map.fitBounds([[b[0], b[2]], [b[1], b[3]]]);
                 const centerLat = (parseFloat(b[0]) + parseFloat(b[1])) / 2;
                 const centerLng = (parseFloat(b[2]) + parseFloat(b[3])) / 2;
-                
+
                 const context = analyzeLocalData(centerLat, centerLng, city);
                 askPerplexity(`Raport de oportunitate pentru ${city}?`, context);
                 document.getElementById('loadBar').style.display = 'none';
@@ -786,7 +941,7 @@ REGULI:
                 const d = await r.json();
                 city = d.address.city || d.address.town || d.address.village || city;
             } catch(er){}
-            
+
             const context = analyzeLocalData(e.latlng.lat, e.latlng.lng, city);
             L.circleMarker(e.latlng, { radius: 10, color: '#fff', fillColor: '#ff00cc', fillOpacity: 1 }).addTo(map);
             askPerplexity(`Analizează potențialul unui locker aici: ${e.latlng.lat}, ${e.latlng.lng}`, context);
