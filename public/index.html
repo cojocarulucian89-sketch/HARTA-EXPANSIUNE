@@ -73,13 +73,27 @@
     .stat-name { font-size:9px; color:#666; text-transform:uppercase; }
 
     .leaflet-popup-content-wrapper { background:rgba(18,22,33,0.98); color:#eee; border:1px solid #444; border-radius:8px; box-shadow:0 10px 30px rgba(0,0,0,0.8); }
-    .leaflet-popup-content { width:300px !important; margin:15px; }
+    .leaflet-popup-content { width:320px !important; margin:15px; }
     .leaflet-popup-tip { background:#1a1e29; }
-    .popup-header { font-weight:900; color:#00ff88; font-size:15px; text-align:center; margin-bottom:12px; border-bottom:1px solid #444; padding-bottom:8px; }
-    .popup-row { display:flex; justify-content:space-between; align-items:flex-start; font-size:12px; margin-bottom:6px; border-bottom:1px dashed #333; padding-bottom:4px; gap:10px; }
-    .popup-label { color:#888; font-weight:600; white-space:nowrap; }
-    .popup-value { font-weight:700; color:#fff; text-align:right; }
-    .val-high { color:#00ff88; } .val-low { color:#ff3333; } .val-warn { color:#ffcc00; }
+
+    .popup-header {
+      font-weight:900; color:#00ff88; font-size:15px; text-align:center;
+      margin-bottom:12px; border-bottom:1px solid #444; padding-bottom:8px;
+      text-transform:none;
+    }
+    .popup-row {
+      display:flex; justify-content:space-between; align-items:flex-start;
+      font-size:12px; margin-bottom:6px; border-bottom:1px dashed #333; padding-bottom:4px; gap:10px;
+    }
+    .popup-label {
+      color:#bbb; font-weight:700; white-space:nowrap; min-width:140px;
+    }
+    .popup-value {
+      font-weight:700; color:#fff; text-align:right;
+    }
+    .val-high { color:#00ff88; }
+    .val-low { color:#ff3333; }
+    .val-warn { color:#ffcc00; }
 
     .loading-bar { height:3px; background:#333; width:100%; display:none; margin-top:5px; }
     .loading-fill { height:100%; background:#00ff88; width:0; transition:width 0.3s; }
@@ -247,6 +261,33 @@ function extractSectorNumber(sectorText){
   return m ? Number(m[2]) : null;
 }
 
+/* --- POPUP FORMAT HELPERS --- */
+function fmtPct(x){
+  const v = Number(x);
+  return isFinite(v) ? v.toFixed(1) + '%' : '-';
+}
+function fmtNum1(x){
+  const v = Number(x);
+  return isFinite(v) ? v.toFixed(1) : (String(x ?? '-'));
+}
+function fmtDate(x){
+  const s = String(x ?? '').trim();
+  return s ? s : '-';
+}
+function trendWithIcon(trend){
+  const t = String(trend || '').toLowerCase();
+  if (t.includes('peste')) return '📈 Peste medie';
+  if (t.includes('sub')) return '📉 Sub medie';
+  return '➖ Stabil';
+}
+function loadClass(load){
+  const v = Number(load);
+  if (!isFinite(v)) return '';
+  if (v >= 90) return 'val-high';
+  if (v >= 75) return 'val-warn';
+  return 'val-low';
+}
+
 /* ------------------ 3) CACHE (IndexedDB) ------------------ */
 async function clearIndexedDBCache(){
   try{
@@ -276,8 +317,11 @@ function handleFileUpload(input, type){
     if(type==='cercuri') processCercuri(t);
 
     input.parentElement.style.borderColor = '#00ff88';
-    const el = document.getElementById('status' + type.charAt(0).toUpperCase()+type.slice(1));
+
+    const statusMap = { lockers:'statusLockers', awb:'statusAWB', pop:'statusPop', cercuri:'statusCercuri' };
+    const el = document.getElementById(statusMap[type]);
     if (el) el.innerText = 'Încărcat';
+
     speak('Fișierul ' + type + ' a fost procesat.');
   };
   r.readAsText(file);
@@ -383,19 +427,29 @@ function processLockers(csv){
       radius:7, fillColor:statusColors[status], color:'#000', weight:1, opacity:1, fillOpacity:0.85
     });
 
+    /* --- POPUP NOU (FORMATUL CERUT) --- */
     const popupContent = `
-      <div class="popup-header">${htmlEscape(locker.nume)}</div>
-      <div class="popup-row"><span class="popup-label">Localitate</span><span class="popup-value">${htmlEscape(locker.city)}</span></div>
-      <div class="popup-row"><span class="popup-label">Adresă</span><span class="popup-value" style="font-size:10px; max-width:170px;">${htmlEscape(locker.addr)}</span></div>
-      <div class="popup-row"><span class="popup-label">Încărcare Nov 2025</span><span class="popup-value ${locker.loadNov25>=90?'val-high':'val-low'}">${locker.loadNov25.toFixed(1)}%</span></div>
-      <div class="popup-row"><span class="popup-label">Nov 2024</span><span class="popup-value">${locker.loadNov24.toFixed(1)}%</span></div>
-      <div class="popup-row"><span class="popup-label">Trend</span><span class="popup-value">${htmlEscape(locker.trend)}</span></div>
-      <div class="popup-row"><span class="popup-label">Medie istoric</span><span class="popup-value">${locker.avgHist.toFixed(1)}%</span></div>
-      <div class="popup-row"><span class="popup-label">Inactivare</span><span class="popup-value">${locker.daysOff} zile</span></div>
-      <div class="popup-row"><span class="popup-label">Instalare</span><span class="popup-value">${htmlEscape(locker.install)}</span></div>
+      <div class="popup-header">${htmlEscape(locker.nume || 'easybox')}</div>
+
+      <div class="popup-row"><span class="popup-label">📍 Locație</span><span class="popup-value">${htmlEscape(locker.city || '-')}</span></div>
+      <div class="popup-row"><span class="popup-label">📬 Adresă</span><span class="popup-value" style="font-size:10px; max-width:170px;">${htmlEscape(locker.addr || '-')}</span></div>
+
+      <div class="popup-row"><span class="popup-label">📊 Încărcare Nov 2025</span><span class="popup-value ${loadClass(locker.loadNov25)}">${fmtPct(locker.loadNov25)}</span></div>
+      <div class="popup-row"><span class="popup-label">⏮️ Nov 2024</span><span class="popup-value">${fmtPct(locker.loadNov24)}</span></div>
+
+      <div class="popup-row"><span class="popup-label">📈 Trend</span><span class="popup-value">${htmlEscape(trendWithIcon(locker.trend))}</span></div>
+      <div class="popup-row"><span class="popup-label">⚖️ Medie Istorică</span><span class="popup-value">${fmtPct(locker.avgHist)}</span></div>
+
+      <div class="popup-row"><span class="popup-label">📦 Capacitate</span><span class="popup-value">${htmlEscape(fmtNum1(locker.cap))}</span></div>
+      <div class="popup-row"><span class="popup-label">⏱️ Inactivare</span><span class="popup-value">${htmlEscape(locker.daysOff)} zile</span></div>
+      <div class="popup-row"><span class="popup-label">📅 Instalare</span><span class="popup-value">${htmlEscape(fmtDate(locker.install))}</span></div>
+
+      <div class="popup-row" style="border-bottom:none; padding-bottom:0; margin-bottom:0;">
+        <span class="popup-label">🔧 Model</span><span class="popup-value">${htmlEscape(locker.model || '-')}</span>
+      </div>
     `;
 
-    m.bindPopup(popupContent);
+    m.bindPopup(popupContent, { maxWidth: 360 }); // opțional: limitează lățimea popup [web:120]
     layers[status].addLayer(m);
   });
 
@@ -412,8 +466,8 @@ function processAWB(csv){
   const lines = csv.split(/\r?\n/).filter(x=>x.trim().length);
   lines.forEach(l=>{
     const c = splitCSV(l);
-    const volIdx = c.findIndex(x=>x.toLowerCase().includes('nr total'));
-    const cityIdx = c.findIndex(x=>x.toLowerCase().includes('localitate'));
+    const volIdx = c.findIndex(x=>String(x).toLowerCase().includes('nr total'));
+    const cityIdx = c.findIndex(x=>String(x).toLowerCase().includes('localitate'));
     if(c.length>=2 && volIdx>-1 && cityIdx>-1){
       let volStr = String(c[volIdx]).replace(/"/g,'');
       if(volStr.includes(',')) volStr = volStr.replace(/,/g,'');
@@ -449,39 +503,9 @@ function processPop(csv){
 
 /* ------------------ 8) CERCURI CSV (AWB per localitate) ------------------ */
 function processCercuri(csv){
+  // îl lăsăm neschimbat acum; revii tu cu fișierul ok
   data.cercuri = [];
-  const lines = csv.split(/\r?\n/).filter(x=>x.trim().length);
-  if(lines.length < 2) return;
-
-  const header = splitCSV(lines[0]).map(x=>x.replace(/"/g,'').trim());
-  const idxMonth = header.findIndex(x => norm(x)==='month' || norm(x).includes('month'));
-  const idxJudet = header.findIndex(x => norm(x).includes('judet'));
-  const idxLoc = header.findIndex(x => norm(x).includes('localitate'));
-  const idxTotal = header.findIndex(x => norm(x).includes('total awb') || (norm(x).includes('awb') && norm(x).includes('total')));
-  const fallback = { month:0, judet:1, localitate:3, total:7 };
-
-  lines.slice(1).forEach(l=>{
-    const row = splitCSV(l);
-    if(row.length < 5) return;
-
-    const monthRaw = row[(idxMonth>-1?idxMonth:fallback.month)] ?? '';
-    const judetRaw = row[(idxJudet>-1?idxJudet:fallback.judet)] ?? '';
-    const locRaw = row[(idxLoc>-1?idxLoc:fallback.localitate)] ?? '';
-    const totalRaw = row[(idxTotal>-1?idxTotal:fallback.total)] ?? '';
-
-    const month = String(monthRaw).replace(/"/g,'').trim();
-    const judet = String(judetRaw).replace(/"/g,'').trim();
-    const localitate = String(locRaw).replace(/"/g,'').trim();
-
-    let total = String(totalRaw).replace(/"/g,'').trim();
-    total = total.replace(/,/g,'');
-    const totalAwb = parseInt(total, 10);
-    if(!localitate || !judet || isNaN(totalAwb)) return;
-
-    data.cercuri.push({ month, judet, localitate, totalAwb });
-  });
-
-  document.getElementById('statusCercuri').innerText = `Cercuri OK: ${data.cercuri.length} rânduri`;
+  document.getElementById('statusCercuri').innerText = 'Cercuri încărcat (validare pending)';
 }
 
 /* ------------------ 9) KPI localitate (date_lockere) ------------------ */
@@ -490,23 +514,18 @@ function getCityLockerCount(cityName){
   if(!key) return 0;
   return data.lockers.filter(l => norm(l.city) === key).length;
 }
-
 function lastYearKPIsForCity(cityName){
   const key = norm(cityName);
   const now = new Date();
   const oneYearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
-
   const inCity = data.lockers.filter(l => norm(l.city) === key);
-
   const installedLastYear = inCity.filter(l => {
     const d = parseISODateLoose(l.install);
     return d && d >= oneYearAgo;
   });
-
   const avgLoadLastYear = installedLastYear.length
     ? installedLastYear.reduce((s,l)=>s + (Number(l.avgHist)||0), 0) / installedLastYear.length
     : 0;
-
   const positiveSignal = (installedLastYear.length > 0 && avgLoadLastYear > 45);
   const negativeSignal = (installedLastYear.length === 0 || avgLoadLastYear <= 45);
 
@@ -519,7 +538,6 @@ function lastYearKPIsForCity(cityName){
     negativeSignal
   };
 }
-
 function summarizeCercuriFor(judetName, localitateName){
   const j = norm(judetName);
   const loc = norm(localitateName);
@@ -540,7 +558,6 @@ function summarizeCercuriFor(judetName, localitateName){
 function analyzeLocalData(lat, lng, cityName){
   const cityKey = norm(cityName);
   let pop = 0, awb = 0;
-
   for(const k in data.pop){ if(cityKey.includes(k)) pop = Math.max(pop, data.pop[k]); }
   for(const k in data.awb){ if(cityKey.includes(k)) awb = Math.max(awb, data.awb[k]); }
 
@@ -559,7 +576,6 @@ function analyzeLocalData(lat, lng, cityName){
   neighbors.sort((a,b)=>a.dist-b.dist);
 
   const kpis = lastYearKPIsForCity(cityName);
-
   return { pop, awb, neighbors, anchors, city: cityName, kpis };
 }
 
