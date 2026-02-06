@@ -1,11 +1,12 @@
 <!DOCTYPE html>
 <html lang="ro">
 <head>
-  <script src="./config.js"></script>
-
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>QUEST DETECTIVE - EXPANSIUNE</title>
+
+  <!-- config.js trebuie să fie în același folder cu index.html -->
+  <script src="./config.js"></script>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -130,39 +131,37 @@
 
     <div class="quest-input-group" style="border-color:var(--accent);">
       <span class="quest-label" style="color:var(--accent);">PERPLEXITY API KEY</span>
-      <div style="font-size:11px;color:#9aa0a6;line-height:1.35;">
-        Cheia este citită automat din <code>config.js</code>.
-      </div>
+      <div style="font-size:11px;color:#9aa0a6;line-height:1.35;">Cheia este citită automat din <code>config.js</code>.</div>
       <div id="keyStatus" style="font-size:10px;color:#555;margin-top:6px;">Verificare cheie...</div>
     </div>
 
     <div class="quest-input-group">
       <span class="quest-label">1. LOCKERE (CSV)</span>
-      <input type="file" onchange="handleFileUpload(this,'lockers')"/>
+      <input type="file" name="lockersFile" onchange="handleFileUpload(this,'lockers')"/>
       <div id="statusLockers" style="font-size:10px;color:#555;margin-top:6px;">Așteptare fișier...</div>
     </div>
 
     <div class="quest-input-group">
       <span class="quest-label">2. VOLUME AWB (CSV)</span>
-      <input type="file" onchange="handleFileUpload(this,'awb')"/>
+      <input type="file" name="awbFile" onchange="handleFileUpload(this,'awb')"/>
       <div id="statusAWB" style="font-size:10px;color:#555;margin-top:6px;">Așteptare fișier...</div>
     </div>
 
     <div class="quest-input-group">
       <span class="quest-label">3. POPULAȚIE (CSV)</span>
-      <input type="file" onchange="handleFileUpload(this,'pop')"/>
+      <input type="file" name="popFile" onchange="handleFileUpload(this,'pop')"/>
       <div id="statusPop" style="font-size:10px;color:#555;margin-top:6px;">Așteptare fișier...</div>
     </div>
 
     <div class="quest-input-group">
       <span class="quest-label">CĂUTARE LOCKER / ADRESĂ</span>
-      <input type="text" id="lockerSearch" class="quest-search" placeholder="Ex: Jolie Ville / Muncii 23 / nume locker" onkeyup="searchLockerUI(event)"/>
+      <input type="text" id="lockerSearch" name="lockerSearch" class="quest-search" placeholder="Ex: Jolie Ville / Muncii 23 / nume locker" onkeyup="searchLockerUI(event)"/>
       <div id="lockerSearchStatus" style="font-size:10px;color:#555;margin-top:6px;"></div>
     </div>
 
     <div class="quest-input-group">
       <span class="quest-label">ASISTENT INTELIGENT</span>
-      <input type="text" id="searchInput" class="quest-search" placeholder="Ex: Analizează Baicului..." onkeyup="handleInput(event)"/>
+      <input type="text" id="searchInput" name="searchInput" class="quest-search" placeholder="Ex: Analizează Baicului..." onkeyup="handleInput(event)"/>
       <div id="aiFeedback">Sistem gata.</div>
       <div id="aiResponse" class="ai-response-box"></div>
     </div>
@@ -190,7 +189,7 @@
   const k = (window.PPLX_API_KEY || '').trim();
   if(!el) return;
   if(k && k.startsWith('pplx-')) el.innerText = 'Cheie detectată (config.js).';
-  else el.innerText = 'Cheie lipsă sau invalidă în config.js.';
+  else el.innerText = 'Cheie lipsă/invalidă în config.js.';
 })();
 
 /* ===========================
@@ -236,7 +235,13 @@ const layers = {
   'Impact 500m': L.layerGroup()
 };
 
-Object.values(layers).forEach(g => g.addTo(map));
+layers['Critic Urgent'].addTo(map);
+layers['Critic Standard'].addTo(map);
+layers['Atenție'].addTo(map);
+layers['Standard'].addTo(map);
+layers['Propuneri'].addTo(map);
+layers['Impact 200m'].addTo(map);
+layers['Impact 500m'].addTo(map);
 
 L.control.layers(
   { 'Light': baseLight, 'Satelit': baseSat },
@@ -271,19 +276,6 @@ function splitCSV(line){
     const c = s[i];
     if(c === '"'){ inQt = !inQt; continue; }
     if(c === sep && !inQt){ res.push(curr.trim()); curr = ''; continue; }
-    curr += c;
-  }
-  res.push(curr.trim());
-  return res;
-}
-
-  const res = [];
-  let curr = '';
-  let inQt = false;
-  for(let i=0;i<str.length;i++){
-    const c = str[i];
-    if(c === '"'){ inQt = !inQt; continue; }
-    if(c === ',' && !inQt){ res.push(curr.trim()); curr = ''; continue; }
     curr += c;
   }
   res.push(curr.trim());
@@ -387,8 +379,6 @@ function handleFileUpload(input, type){
 =========================== */
 function processLockers(csv){
   Object.values(layers).forEach(g => g.clearLayers());
-  Object.values(layers).forEach(g => g.addTo(map));
-
   lockerMarkers = [];
   data.lockers = [];
 
@@ -648,74 +638,46 @@ function processPop(csv){
 }
 
 /* ===========================
-   8) LOOKUPS
+   AUTOLOAD CSV din repo (/data)
 =========================== */
-function getAwbFor(judetName, localitateName){
-  const key = makeJLKey(judetName, localitateName);
-  return key && data.awbJL[key] ? data.awbJL[key] : 0;
-}
-function getPopFor(judetName, localitateName){
-  const key = makeJLKey(judetName, localitateName);
-  return key && data.popJL[key] ? data.popJL[key] : 0;
-}
+async function loadAllCSVs(){
+  const setStatus = (id, txt) => {
+    const el = document.getElementById(id);
+    if(el) el.innerText = txt;
+  };
 
-/* ===========================
-   9) ZONE METRICS
-=========================== */
-function zoneMetrics(lat, lng){
-  const within200 = [];
-  const within500 = [];
-  const within1500 = [];
-
-  data.lockers.forEach(l => {
-    const d = getDist(lat, lng, l.lat, l.lng);
-    if(d <= 200) within200.push({ locker:l, dist:d });
-    if(d <= 500) within500.push({ locker:l, dist:d });
-    if(d <= 1500) within1500.push({ locker:l, dist:d });
-  });
-
-  function summarize(list){
-    if(!list.length) return { count:0, avgLoad:0, avgTrendDelta:0, installs12:0, top:[] };
-
-    const loads = list.map(x=>x.locker.loadNov25).filter(v=>typeof v==='number' && v>0);
-    const avgLoad = loads.length ? loads.reduce((a,b)=>a+b,0)/loads.length : 0;
-
-    const deltas = list.map(x => (x.locker.loadNov25||0) - (x.locker.loadNov24||0));
-    const avgTrendDelta = deltas.length ? deltas.reduce((a,b)=>a+b,0)/deltas.length : 0;
-
-    const installs12 = list.filter(x => (x.locker.installMonthsAgo||Infinity) <= 12).length;
-
-    const top = list
-      .slice()
-      .sort((a,b)=>(b.locker.loadNov25||0)-(a.locker.loadNov25||0))
-      .slice(0,8)
-      .map(x=>({
-        name:x.locker.nume,
-        city:x.locker.city,
-        load: +(x.locker.loadNov25||0).toFixed(1),
-        off:x.locker.daysOff||0,
-        dist:x.dist
-      }));
-
-    return { count:list.length, avgLoad:+avgLoad.toFixed(1), avgTrendDelta:+avgTrendDelta.toFixed(1), installs12, top };
+  try{
+    setStatus('statusLockers', 'Se încarcă automat...');
+    const lockersText = await (await fetch('./data/date_lockere_actualizat.csv', { cache:'no-store' })).text();
+    processLockers(lockersText);
+    setStatus('statusLockers', 'Încărcat automat (date_lockere_actualizat.csv)');
+  } catch(e){
+    console.error('Autoload lockers error:', e);
+    setStatus('statusLockers', 'Eroare autoload: date_lockere_actualizat.csv');
   }
 
-  return { r200: summarize(within200), r500: summarize(within500), r1500: summarize(within1500) };
+  try{
+    setStatus('statusAWB', 'Se încarcă automat...');
+    const awbText = await (await fetch('./data/cercuri.csv', { cache:'no-store' })).text();
+    processAWB(awbText);
+    setStatus('statusAWB', 'Încărcat automat (cercuri.csv)');
+  } catch(e){
+    console.error('Autoload awb error:', e);
+    setStatus('statusAWB', 'Eroare autoload: cercuri.csv');
+  }
+
+  try{
+    setStatus('statusPop', 'Se încarcă automat...');
+    const popText = await (await fetch('./data/populatie_2021.csv', { cache:'no-store' })).text();
+    processPop(popText);
+    setStatus('statusPop', 'Încărcat automat (populatie_2021.csv)');
+  } catch(e){
+    console.error('Autoload pop error:', e);
+    setStatus('statusPop', 'Eroare autoload: populatie_2021.csv');
+  }
 }
 
-function analyzeLocalData(lat, lng, cityName, judetName){
-  const pop = judetName ? getPopFor(judetName, cityName) : 0;
-  const awb = judetName ? getAwbFor(judetName, cityName) : 0;
-  const metrics = zoneMetrics(lat, lng);
-
-  const anchors = [];
-  (metrics.r1500.top || []).forEach(x=>{
-    const n = (x.name||'').toLowerCase();
-    ANCHORS.forEach(tag => { if(n.includes(tag) && !anchors.includes(tag)) anchors.push(tag); });
-  });
-
-  return { pop, awb, city: cityName, judet: judetName || '', metrics, anchors };
-}
+window.addEventListener('load', loadAllCSVs);
 
 /* ===========================
    10) IMPACT CIRCLES
@@ -724,13 +686,24 @@ function drawImpactCircles(latlng){
   layers['Impact 200m'].clearLayers();
   layers['Impact 500m'].clearLayers();
 
-  layers['Impact 200m'].addLayer(L.circle(latlng, {
-    radius: 200, color: '#00ff88', weight: 2, fillColor: '#00ff88', fillOpacity: 0.08
-  }));
+  const c200 = L.circle(latlng, {
+    radius: 200,
+    color: '#00ff88',
+    weight: 2,
+    fillColor: '#00ff88',
+    fillOpacity: 0.08
+  });
 
-  layers['Impact 500m'].addLayer(L.circle(latlng, {
-    radius: 500, color: '#ff00cc', weight: 2, fillColor: '#ff00cc', fillOpacity: 0.06
-  }));
+  const c500 = L.circle(latlng, {
+    radius: 500,
+    color: '#ff00cc',
+    weight: 2,
+    fillColor: '#ff00cc',
+    fillOpacity: 0.06
+  });
+
+  layers['Impact 200m'].addLayer(c200);
+  layers['Impact 500m'].addLayer(c500);
 }
 
 /* ===========================
@@ -962,6 +935,62 @@ async function startAutoScan(cityFromParam=null){
 /* ===========================
    15) ANALIZĂ PUNCTUALĂ
 =========================== */
+function zoneMetrics(lat, lng){
+  const within200 = [];
+  const within500 = [];
+  const within1500 = [];
+
+  data.lockers.forEach(l => {
+    const d = getDist(lat, lng, l.lat, l.lng);
+    if(d <= 200) within200.push({ locker:l, dist:d });
+    if(d <= 500) within500.push({ locker:l, dist:d });
+    if(d <= 1500) within1500.push({ locker:l, dist:d });
+  });
+
+  function summarize(list){
+    if(!list.length) return { count:0, avgLoad:0, avgTrendDelta:0, installs12:0, top:[] };
+
+    const loads = list.map(x=>x.locker.loadNov25).filter(v=>typeof v==='number' && v>0);
+    const avgLoad = loads.length ? loads.reduce((a,b)=>a+b,0)/loads.length : 0;
+
+    const deltas = list.map(x => (x.locker.loadNov25||0) - (x.locker.loadNov24||0));
+    const avgTrendDelta = deltas.length ? deltas.reduce((a,b)=>a+b,0)/deltas.length : 0;
+
+    const installs12 = list.filter(x => (x.locker.installMonthsAgo||Infinity) <= 12).length;
+
+    const top = list
+      .slice()
+      .sort((a,b)=>(b.locker.loadNov25||0)-(a.locker.loadNov25||0))
+      .slice(0,8)
+      .map(x=>({
+        name:x.locker.nume,
+        city:x.locker.city,
+        load: +(x.locker.loadNov25||0).toFixed(1),
+        off:x.locker.daysOff||0,
+        dist:x.dist
+      }));
+
+    return { count:list.length, avgLoad:+avgLoad.toFixed(1), avgTrendDelta:+avgTrendDelta.toFixed(1), installs12, top };
+  }
+
+  return { r200: summarize(within200), r500: summarize(within500), r1500: summarize(within1500) };
+}
+
+function analyzeLocalData(lat, lng, cityName, judetName){
+  const pop = judetName ? (data.popJL[makeJLKey(judetName, cityName)] || 0) : 0;
+  const awb = judetName ? (data.awbJL[makeJLKey(judetName, cityName)] || 0) : 0;
+
+  const metrics = zoneMetrics(lat, lng);
+  const anchors = [];
+
+  (metrics.r1500.top || []).forEach(x=>{
+    const n = (x.name||'').toLowerCase();
+    ANCHORS.forEach(tag => { if(n.includes(tag) && !anchors.includes(tag)) anchors.push(tag); });
+  });
+
+  return { pop, awb, city: cityName, judet: judetName || '', metrics, anchors };
+}
+
 function toggleAddMode(){
   addMode = !addMode;
   const btn = document.getElementById('addModeBtn');
